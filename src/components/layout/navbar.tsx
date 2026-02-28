@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Wallet } from 'lucide-react'
+import { LayoutDashboard, Users, Wallet, BookUser } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: 'דשבורד', icon: LayoutDashboard },
   { href: '/guests', label: 'אורחים', icon: Users },
   { href: '/budget', label: 'תקציב', icon: Wallet },
+  { href: '/contacts', label: 'אנשי קשר', icon: BookUser },
 ]
 
 export function Navbar() {

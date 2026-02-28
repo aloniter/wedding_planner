@@ -62,3 +62,20 @@ export interface GuestStats {
   totalAdults: number
   totalKids: number
 }
+
+// Imported phone contacts (workspace model, separate from guests)
+export interface ImportedContact {
+  id: string
+  first_name: string
+  last_name: string
+  full_name: string
+  phone: string | null
+  email: string | null
+  group_tag: string | null
+  source: 'vcf' | 'google_csv'
+  imported_at: string
+}
+
+export type ImportedContactUpdate = Partial<Pick<ImportedContact,
+  'first_name' | 'last_name' | 'full_name' | 'phone' | 'email' | 'group_tag'
+>>

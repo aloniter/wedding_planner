@@ -22,3 +22,13 @@ export const VENDOR_CATEGORIES: { value: VendorCategory; label: string; emoji: s
   { value: 'שמלה/חליפה', label: 'שמלה/חליפה', emoji: '👗' },
   { value: 'אחר', label: 'אחר', emoji: '📦' },
 ]
+
+export const CONTACT_GROUP_PRESETS = [
+  'משפחה',
+  'חברים',
+  'עבודה',
+  'שכנים',
+  'אחר',
+] as const
+
+export type ContactGroupPreset = typeof CONTACT_GROUP_PRESETS[number]

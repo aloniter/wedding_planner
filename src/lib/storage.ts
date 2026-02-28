@@ -1,9 +1,10 @@
-import type { Wedding, Guest, Vendor } from './types'
+import type { Wedding, Guest, Vendor, ImportedContact } from './types'
 
 const KEYS = {
   wedding: 'wedding_data',
   guests: 'guests_data',
   vendors: 'vendors_data',
+  contacts: 'contacts_data',
 } as const
 
 function getItem<T>(key: string): T | null {
@@ -47,4 +48,13 @@ export function getStoredVendors(): Vendor[] {
 
 export function setStoredVendors(vendors: Vendor[]): void {
   setItem(KEYS.vendors, vendors)
+}
+
+// Contacts
+export function getStoredContacts(): ImportedContact[] {
+  return getItem<ImportedContact[]>(KEYS.contacts) ?? []
+}
+
+export function setStoredContacts(contacts: ImportedContact[]): void {
+  setItem(KEYS.contacts, contacts)
 }

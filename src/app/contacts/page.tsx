@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Download, Trash2 } from 'lucide-react'
@@ -13,9 +13,13 @@ import { useWedding } from '@/hooks/use-wedding'
 import { useGuests } from '@/hooks/use-guests'
 import { useContacts } from '@/hooks/use-contacts'
 import { exportContactsToExcel } from '@/lib/contacts-excel'
+import { parseVcfText } from '@/lib/vcf'
+import { parseContactsCsv } from '@/lib/contacts-csv'
 
 export default function ContactsPage() {
   const router = useRouter()
+  const [processedShare, setProcessedShare] = useState(false)
+  const [hasShared, setHasShared] = useState(false)
   const { wedding, loading: weddingLoading } = useWedding()
   const { addGuestsBulk } = useGuests(wedding?.id)
   const {
@@ -32,6 +36,63 @@ export default function ContactsPage() {
     deleteContact,
     clearAll,
   } = useContacts()
+
+  // Check for shared file on mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasSharedParam = window.location.search.includes('shared=1')
+      setHasShared(hasSharedParam)
+    }
+  }, [])
+
+  // Handle shared files from Web Share Target API
+  useEffect(() => {
+    const handleSharedFile = async () => {
+      if (processedShare || !hasShared) return
+
+      try {
+        const cache = await caches.open('wedding-planner-share')
+        const metaResponse = await cache.match(new Request('shared-file:metadata'))
+        const fileResponse = await cache.match(new Request('shared-file:content'))
+
+        if (!metaResponse || !fileResponse) return
+
+        const metadata = (await metaResponse.json()) as { name: string; type: string }
+        const fileBlob = await fileResponse.blob()
+
+        // Parse based on file type
+        let parsedContacts: Awaited<ReturnType<typeof parseVcfText>>
+
+        const ext = metadata.name.toLowerCase().split('.').pop()
+        if (ext === 'vcf') {
+          const text = await fileBlob.text()
+          parsedContacts = parseVcfText(text)
+        } else if (ext === 'csv') {
+          const file = new File([fileBlob], metadata.name, { type: 'text/csv' })
+          parsedContacts = await parseContactsCsv(file)
+        } else {
+          return
+        }
+
+        if (parsedContacts.length > 0) {
+          importContacts(parsedContacts)
+        }
+
+        // Clean up cache
+        await cache.delete(new Request('shared-file:metadata'))
+        await cache.delete(new Request('shared-file:content'))
+
+        // Remove the query param
+        router.replace('/contacts')
+      } catch (error) {
+        console.error('Error processing shared file:', error)
+      } finally {
+        setProcessedShare(true)
+      }
+    }
+
+    handleSharedFile()
+  }, [hasShared, processedShare, importContacts, router])
 
   useEffect(() => {
     if (!weddingLoading && !wedding) {

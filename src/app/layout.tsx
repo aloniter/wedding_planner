@@ -21,11 +21,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl" className={heebo.variable}>
+      <head>
+        <meta name="theme-color" content="#2563eb" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className="font-sans min-h-screen pb-20 md:pb-0">
         <Navbar />
         <main className="container mx-auto px-4 py-6 max-w-5xl">
           {children}
         </main>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(() => {})
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )

@@ -55,7 +55,12 @@ export default function GuestsPage() {
         action={
           <div className="flex gap-2">
             <AddGuestDialog weddingId={wedding.id} onAdd={addGuest} />
-            <CsvImportDialog weddingId={wedding.id} onImport={addGuestsBulk} />
+            <CsvImportDialog
+              weddingId={wedding.id}
+              groomName={wedding.groom_name}
+              brideName={wedding.bride_name}
+              onImport={addGuestsBulk}
+            />
             {allGuests.length > 0 && (
               <Button
                 variant="outline"

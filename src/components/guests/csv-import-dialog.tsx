@@ -10,15 +10,22 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Upload, Download, FileSpreadsheet } from 'lucide-react'
-import { parseCsvFile, downloadCsvTemplate } from '@/lib/csv'
+import { parseGuestImportFile, downloadCsvTemplate } from '@/lib/csv'
 import type { GuestInsert } from '@/lib/types'
 
 interface CsvImportDialogProps {
   weddingId: string
+  groomName?: string | null
+  brideName?: string | null
   onImport: (guests: GuestInsert[]) => void
 }
 
-export function CsvImportDialog({ weddingId, onImport }: CsvImportDialogProps) {
+export function CsvImportDialog({
+  weddingId,
+  groomName,
+  brideName,
+  onImport,
+}: CsvImportDialogProps) {
   const [open, setOpen] = useState(false)
   const [parsedGuests, setParsedGuests] = useState<GuestInsert[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -33,14 +40,17 @@ export function CsvImportDialog({ weddingId, onImport }: CsvImportDialogProps) {
     setLoading(true)
 
     try {
-      const guests = await parseCsvFile(file, weddingId)
+      const guests = await parseGuestImportFile(file, weddingId, {
+        groomName,
+        brideName,
+      })
       if (guests.length === 0) {
-        setError('לא נמצאו אורחים בקובץ. ודאו שיש עמודת "שם".')
+        setError('לא נמצאו אורחים בקובץ. ודאו שיש עמודת שם או שם פרטי/שם משפחה.')
       } else {
         setParsedGuests(guests)
       }
     } catch {
-      setError('שגיאה בקריאת הקובץ. ודאו שזהו קובץ CSV תקין.')
+      setError('שגיאה בקריאת הקובץ. ודאו שזהו CSV/XLSX/XLS תקין עם כותרות תואמות.')
     } finally {
       setLoading(false)
     }
@@ -67,12 +77,12 @@ export function CsvImportDialog({ weddingId, onImport }: CsvImportDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Upload className="h-4 w-4 ml-1" />
-          ייבוא CSV
+          ייבוא קובץ
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>ייבוא אורחים מ-CSV</DialogTitle>
+          <DialogTitle>ייבוא אורחים מקובץ</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {parsedGuests.length === 0 ? (
@@ -80,12 +90,12 @@ export function CsvImportDialog({ weddingId, onImport }: CsvImportDialogProps) {
               <div className="border-2 border-dashed rounded-lg p-6 text-center">
                 <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground mb-3">
-                  העלו קובץ CSV עם עמודות: שם, טלפון, צד
+                  העלו קובץ CSV/Excel עם עמודות כמו: שם (או שם פרטי+שם משפחה), טלפון, צד, # מוזמנים
                 </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileChange}
                   className="block w-full text-sm text-muted-foreground file:ml-2 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer"
                 />
@@ -97,7 +107,7 @@ export function CsvImportDialog({ weddingId, onImport }: CsvImportDialogProps) {
                 className="text-xs"
               >
                 <Download className="h-3 w-3 ml-1" />
-                הורד קובץ לדוגמה
+                הורד טמפלייט CSV לדוגמה
               </Button>
               {error && <p className="text-sm text-red-600">{error}</p>}
               {loading && <p className="text-sm text-muted-foreground">מעבד את הקובץ...</p>}

@@ -18,12 +18,14 @@ export function SetupForm() {
   const [venueName, setVenueName] = useState('')
   const [totalBudget, setTotalBudget] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!groomName.trim() || !brideName.trim() || submitting) return
 
     setSubmitting(true)
+    setError(null)
     const result = await createWedding({
       bride_name: brideName.trim(),
       groom_name: groomName.trim(),
@@ -36,6 +38,7 @@ export function SetupForm() {
     if (result) {
       router.push('/')
     } else {
+      setError('שגיאה ביצירת החתונה. אנא נסו שוב.')
       setSubmitting(false)
     }
   }
@@ -105,6 +108,10 @@ export function SetupForm() {
                 min="0"
               />
             </div>
+
+            {error && (
+              <p className="text-sm text-destructive text-center">{error}</p>
+            )}
 
             <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={submitting}>
               {submitting ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 
 interface RealtimeCallbacks<T> {
   onInsert: (record: T) => void
@@ -22,7 +22,7 @@ export function useRealtime<T>(
   })
 
   useEffect(() => {
-    if (!weddingId) return
+    if (!weddingId || !getSupabaseConfig()) return
 
     const supabase = createClient()
 

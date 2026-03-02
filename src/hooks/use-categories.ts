@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { GuestCategory } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useRealtime } from './use-realtime'
 
 export function useCategories(weddingId: string | undefined) {
@@ -11,10 +11,12 @@ export function useCategories(weddingId: string | undefined) {
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
 
-  const supabase = createClient()
-
   useEffect(() => {
-    if (!weddingId) return
+    if (!weddingId || !getSupabaseConfig()) {
+      setLoading(false)
+      return
+    }
+    const supabase = createClient()
     let cancelled = false
 
     async function load() {
@@ -32,7 +34,7 @@ export function useCategories(weddingId: string | undefined) {
 
     load()
     return () => { cancelled = true }
-  }, [weddingId, supabase])
+  }, [weddingId])
 
   useRealtime<GuestCategory>('guest_categories', weddingId, {
     onInsert: (c) => setCategories(prev =>
@@ -46,6 +48,7 @@ export function useCategories(weddingId: string | undefined) {
   })
 
   const addCategory = useCallback(async (name: string) => {
+    const supabase = createClient()
     const { data: newCat, error } = await supabase
       .from('guest_categories')
       .insert({
@@ -62,9 +65,10 @@ export function useCategories(weddingId: string | undefined) {
       return newCat as GuestCategory
     }
     return null
-  }, [weddingId, supabase])
+  }, [weddingId])
 
   const renameCategory = useCallback(async (id: string, newName: string) => {
+    const supabase = createClient()
     const previous = categoriesRef.current
     setCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c))
 
@@ -76,9 +80,10 @@ export function useCategories(weddingId: string | undefined) {
     if (error) {
       setCategories(previous)
     }
-  }, [supabase])
+  }, [])
 
   const deleteCategory = useCallback(async (id: string) => {
+    const supabase = createClient()
     const previous = categoriesRef.current
     setCategories(prev => prev.filter(c => c.id !== id))
 
@@ -90,7 +95,7 @@ export function useCategories(weddingId: string | undefined) {
     if (error) {
       setCategories(previous)
     }
-  }, [supabase])
+  }, [])
 
   return {
     categories,

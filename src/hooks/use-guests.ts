@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Guest, GuestInsert, GuestUpdate, GuestStats, RsvpStatus, GuestSide, GuestSortField, SortDirection } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useRealtime } from './use-realtime'
 
 function normalizeForDuplicateCheck(value: string): string {
@@ -21,11 +21,13 @@ export function useGuests(weddingId: string | undefined) {
   const guestsRef = useRef(guests)
   guestsRef.current = guests
 
-  const supabase = createClient()
-
   // Fetch guests from Supabase
   useEffect(() => {
-    if (!weddingId) return
+    if (!weddingId || !getSupabaseConfig()) {
+      setLoading(false)
+      return
+    }
+    const supabase = createClient()
     let cancelled = false
 
     async function load() {
@@ -43,7 +45,7 @@ export function useGuests(weddingId: string | undefined) {
 
     load()
     return () => { cancelled = true }
-  }, [weddingId, supabase])
+  }, [weddingId])
 
   // Real-time subscriptions
   useRealtime<Guest>('guests', weddingId, {
@@ -66,6 +68,7 @@ export function useGuests(weddingId: string | undefined) {
   })
 
   const addGuest = useCallback(async (data: GuestInsert) => {
+    const supabase = createClient()
     const { data: newGuest, error } = await supabase
       .from('guests')
       .insert({
@@ -91,9 +94,10 @@ export function useGuests(weddingId: string | undefined) {
       return newGuest as Guest
     }
     return null
-  }, [supabase])
+  }, [])
 
   const addGuestsBulk = useCallback(async (data: GuestInsert[]) => {
+    const supabase = createClient()
     const rows = data.map(d => ({
       wedding_id: d.wedding_id,
       full_name: d.full_name,
@@ -131,9 +135,10 @@ export function useGuests(weddingId: string | undefined) {
       })
     }
     return allNew
-  }, [supabase])
+  }, [])
 
   const updateGuest = useCallback(async (id: string, updates: GuestUpdate) => {
+    const supabase = createClient()
     const previous = guestsRef.current
 
     // Optimistic update
@@ -147,9 +152,10 @@ export function useGuests(weddingId: string | undefined) {
     if (error) {
       setGuests(previous)
     }
-  }, [supabase])
+  }, [])
 
   const deleteGuest = useCallback(async (id: string) => {
+    const supabase = createClient()
     const previous = guestsRef.current
 
     // Optimistic delete
@@ -163,7 +169,7 @@ export function useGuests(weddingId: string | undefined) {
     if (error) {
       setGuests(previous)
     }
-  }, [supabase])
+  }, [])
 
   const stats: GuestStats = useMemo(() => {
     return guests.reduce<GuestStats>(

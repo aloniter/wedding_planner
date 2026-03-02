@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { WeddingTable, WeddingTableInsert, WeddingTableUpdate, Guest } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useRealtime } from './use-realtime'
 
 export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
@@ -11,10 +11,12 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
   const tablesRef = useRef(tables)
   tablesRef.current = tables
 
-  const supabase = createClient()
-
   useEffect(() => {
-    if (!weddingId) return
+    if (!weddingId || !getSupabaseConfig()) {
+      setLoading(false)
+      return
+    }
+    const supabase = createClient()
     let cancelled = false
 
     async function load() {
@@ -32,7 +34,7 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
 
     load()
     return () => { cancelled = true }
-  }, [weddingId, supabase])
+  }, [weddingId])
 
   useRealtime<WeddingTable>('wedding_tables', weddingId, {
     onInsert: (t) => setTables(prev =>
@@ -46,6 +48,7 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
   })
 
   const addTable = useCallback(async (data: WeddingTableInsert) => {
+    const supabase = createClient()
     const { data: newTable, error } = await supabase
       .from('wedding_tables')
       .insert({
@@ -64,9 +67,10 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
       return newTable as WeddingTable
     }
     return null
-  }, [supabase])
+  }, [])
 
   const updateTable = useCallback(async (id: string, updates: WeddingTableUpdate) => {
+    const supabase = createClient()
     const previous = tablesRef.current
     setTables(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
 
@@ -78,9 +82,10 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
     if (error) {
       setTables(previous)
     }
-  }, [supabase])
+  }, [])
 
   const deleteTable = useCallback(async (id: string) => {
+    const supabase = createClient()
     const previous = tablesRef.current
     setTables(prev => prev.filter(t => t.id !== id))
 
@@ -92,7 +97,7 @@ export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
     if (error) {
       setTables(previous)
     }
-  }, [supabase])
+  }, [])
 
   const tableAssignments = useMemo(() => {
     const map = new Map<string, Guest[]>()

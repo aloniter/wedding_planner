@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Vendor, VendorInsert, VendorUpdate } from '@/lib/types'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useRealtime } from './use-realtime'
 
 export function useVendors(weddingId: string | undefined) {
@@ -11,10 +11,12 @@ export function useVendors(weddingId: string | undefined) {
   const vendorsRef = useRef(vendors)
   vendorsRef.current = vendors
 
-  const supabase = createClient()
-
   useEffect(() => {
-    if (!weddingId) return
+    if (!weddingId || !getSupabaseConfig()) {
+      setLoading(false)
+      return
+    }
+    const supabase = createClient()
     let cancelled = false
 
     async function load() {
@@ -32,7 +34,7 @@ export function useVendors(weddingId: string | undefined) {
 
     load()
     return () => { cancelled = true }
-  }, [weddingId, supabase])
+  }, [weddingId])
 
   useRealtime<Vendor>('vendors', weddingId, {
     onInsert: (v) => setVendors(prev =>
@@ -46,6 +48,7 @@ export function useVendors(weddingId: string | undefined) {
   })
 
   const addVendor = useCallback(async (data: VendorInsert) => {
+    const supabase = createClient()
     const { data: newVendor, error } = await supabase
       .from('vendors')
       .insert({
@@ -67,9 +70,10 @@ export function useVendors(weddingId: string | undefined) {
       return newVendor as Vendor
     }
     return null
-  }, [supabase])
+  }, [])
 
   const updateVendor = useCallback(async (id: string, updates: VendorUpdate) => {
+    const supabase = createClient()
     const previous = vendorsRef.current
     setVendors(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v))
 
@@ -81,9 +85,10 @@ export function useVendors(weddingId: string | undefined) {
     if (error) {
       setVendors(previous)
     }
-  }, [supabase])
+  }, [])
 
   const deleteVendor = useCallback(async (id: string) => {
+    const supabase = createClient()
     const previous = vendorsRef.current
     setVendors(prev => prev.filter(v => v.id !== id))
 
@@ -95,7 +100,7 @@ export function useVendors(weddingId: string | undefined) {
     if (error) {
       setVendors(previous)
     }
-  }, [supabase])
+  }, [])
 
   const totals = useMemo(() => {
     const totalPrice = vendors.reduce((sum, v) => sum + v.total_price, 0)

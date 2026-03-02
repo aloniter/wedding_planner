@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useAuth } from './auth-provider'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
 import { DEFAULT_GUEST_CATEGORIES } from '@/lib/constants'
@@ -31,17 +31,17 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
   const [wedding, setWedding] = useState<Wedding | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   // Load user's wedding via project_members
   useEffect(() => {
     if (authLoading) return
-    if (!user) {
+    if (!user || !getSupabaseConfig()) {
       setWedding(null)
       setLoading(false)
       return
     }
 
+    const supabase = createClient()
     let cancelled = false
 
     async function loadWedding() {
@@ -79,12 +79,13 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
 
     loadWedding()
     return () => { cancelled = true }
-  }, [user, authLoading, supabase])
+  }, [user, authLoading])
 
   // Subscribe to wedding updates
   useEffect(() => {
-    if (!wedding?.id) return
+    if (!wedding?.id || !getSupabaseConfig()) return
 
+    const supabase = createClient()
     const channel = supabase
       .channel(`wedding:${wedding.id}`)
       .on(
@@ -104,12 +105,13 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [wedding?.id, supabase])
+  }, [wedding?.id])
 
   const createWedding = useCallback(async (
     data: Omit<Wedding, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Wedding | null> => {
-    if (!user) return null
+    if (!user || !getSupabaseConfig()) return null
+    const supabase = createClient()
 
     const { data: newWedding, error: insertError } = await supabase
       .from('weddings')
@@ -149,10 +151,11 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     const result = newWedding as Wedding
     setWedding(result)
     return result
-  }, [user, supabase])
+  }, [user])
 
   const updateWedding = useCallback(async (updates: WeddingUpdate) => {
-    if (!wedding) return
+    if (!wedding || !getSupabaseConfig()) return
+    const supabase = createClient()
 
     // Optimistic update
     const previous = wedding
@@ -167,7 +170,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       setWedding(previous)
       setError('שגיאה בעדכון פרטי החתונה')
     }
-  }, [wedding, supabase])
+  }, [wedding])
 
   return (
     <WeddingContext.Provider value={{ wedding, loading, error, createWedding, updateWedding }}>

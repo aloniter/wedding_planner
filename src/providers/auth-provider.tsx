@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextValue {
@@ -26,9 +26,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
+    // Skip if Supabase is not configured (e.g., during build)
+    if (!getSupabaseConfig()) {
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient()
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -46,13 +53,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [])
 
   const signOut = useCallback(async () => {
+    if (!getSupabaseConfig()) return
+    const supabase = createClient()
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
-  }, [supabase])
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signOut }}>

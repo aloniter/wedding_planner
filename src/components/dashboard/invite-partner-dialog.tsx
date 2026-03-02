@@ -27,7 +27,6 @@ export function InvitePartnerDialog({ weddingId }: InvitePartnerDialogProps) {
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
-  const supabase = createClient()
 
   const inviteLink = typeof window !== 'undefined'
     ? `${window.location.origin}/auth?invite=${weddingId}`
@@ -41,6 +40,7 @@ export function InvitePartnerDialog({ weddingId }: InvitePartnerDialogProps) {
     setError(null)
 
     // Create a pending project_members row
+    const supabase = createClient()
     const { error: insertError } = await supabase
       .from('project_members')
       .insert({

@@ -43,3 +43,7 @@ next-env.d.ts
 # playwright mcp runtime
 /.playwright-mcp/
 *.png
+
+# claude local config (contains secrets)
+.claude/settings.json
+.claude/settings.local.json

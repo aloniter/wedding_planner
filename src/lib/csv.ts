@@ -12,6 +12,7 @@ type ImportField =
   | 'adults_count'
   | 'kids_count'
   | 'rsvp_status'
+  | 'gift_amount'
   | 'notes'
   | 'attending_count'
 
@@ -30,6 +31,7 @@ const FIELD_ALIASES: Record<ImportField, string[]> = {
   adults_count: ['מוזמנים', 'מסמוזמנים', 'כמותמוזמנים', 'מבוגרים', 'adults', 'guestcount'],
   kids_count: ['ילדים', 'כמותילדים', 'kids', 'children'],
   rsvp_status: ['סטטוסrsvp', 'rsvp', 'סטטוס', 'status'],
+  gift_amount: ['מתנה', 'סכוםמתנה', 'gift', 'giftamount'],
   notes: ['הערות', 'notes', 'note'],
   attending_count: ['מגיעים', 'מסמגיעים', 'כמותמגיעים', 'attending', 'arriving'],
 }
@@ -287,6 +289,14 @@ function validateRsvpStatus(value: unknown): RsvpStatus {
     return 'ביטל'
   }
 
+  if (
+    status.includes('אולי') ||
+    status.includes('maybe') ||
+    status.includes('uncertain')
+  ) {
+    return 'אולי'
+  }
+
   return 'ממתין'
 }
 
@@ -298,32 +308,40 @@ function mapRowsToGuests(
 ): GuestInsert[] {
   const mapping = buildHeaderMapping(headers)
 
-  return rows
-    .map((row) => {
-      const fullName = toText(row[mapping.full_name ?? ''])
-      const firstName = toText(row[mapping.first_name ?? ''])
-      const lastName = toText(row[mapping.last_name ?? ''])
-      const composedName = [firstName, lastName].filter(Boolean).join(' ').trim()
-      const guestName = fullName || composedName
+  const results: GuestInsert[] = []
 
-      if (!guestName) return null
+  for (const row of rows) {
+    const fullName = toText(row[mapping.full_name ?? ''])
+    const firstName = toText(row[mapping.first_name ?? ''])
+    const lastName = toText(row[mapping.last_name ?? ''])
+    const composedName = [firstName, lastName].filter(Boolean).join(' ').trim()
+    const guestName = fullName || composedName
 
-      const adultsRaw = row[mapping.adults_count ?? '']
-      const attendingRaw = row[mapping.attending_count ?? '']
+    if (!guestName) continue
 
-      return {
-        wedding_id: weddingId,
-        full_name: guestName,
-        phone: toOptionalText(row[mapping.phone ?? '']),
-        side: validateSide(row[mapping.side ?? ''], options),
-        group_name: toOptionalText(row[mapping.group_name ?? '']),
-        adults_count: parseCount(adultsRaw || attendingRaw, 1),
-        kids_count: parseCount(row[mapping.kids_count ?? ''], 0),
-        rsvp_status: validateRsvpStatus(row[mapping.rsvp_status ?? '']),
-        notes: toOptionalText(row[mapping.notes ?? '']),
-      } satisfies GuestInsert
+    const adultsRaw = row[mapping.adults_count ?? '']
+    const attendingRaw = row[mapping.attending_count ?? '']
+
+    const giftRaw = toText(row[mapping.gift_amount ?? ''])
+    const giftParsed = giftRaw ? Number(giftRaw.replace(/[^\d.-]/g, '')) : null
+    const giftAmount = giftParsed != null && Number.isFinite(giftParsed) && giftParsed > 0 ? giftParsed : null
+
+    results.push({
+      wedding_id: weddingId,
+      full_name: guestName,
+      phone: toOptionalText(row[mapping.phone ?? '']),
+      side: validateSide(row[mapping.side ?? ''], options),
+      group_name: toOptionalText(row[mapping.group_name ?? '']),
+      adults_count: parseCount(adultsRaw || attendingRaw, 1),
+      kids_count: parseCount(row[mapping.kids_count ?? ''], 0),
+      rsvp_status: validateRsvpStatus(row[mapping.rsvp_status ?? '']),
+      gift_amount: giftAmount,
+      table_id: null,
+      notes: toOptionalText(row[mapping.notes ?? '']),
     })
-    .filter((guest): guest is GuestInsert => guest !== null)
+  }
+
+  return results
 }
 
 export function parseCsvFile(
@@ -382,6 +400,7 @@ export function exportGuestsToCsv(guests: Guest[]): void {
     'מבוגרים': g.adults_count,
     'ילדים': g.kids_count,
     'סטטוס RSVP': g.rsvp_status,
+    'מתנה': g.gift_amount ?? '',
     'הערות': g.notes || '',
   }))
 

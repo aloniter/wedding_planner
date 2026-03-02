@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Wallet, BookUser } from 'lucide-react'
+import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: 'דשבורד', icon: LayoutDashboard },
   { href: '/guests', label: 'אורחים', icon: Users },
+  { href: '/tables', label: 'שולחנות', icon: LayoutGrid },
   { href: '/budget', label: 'תקציב', icon: Wallet },
   { href: '/contacts', label: 'אנשי קשר', icon: BookUser },
 ]
@@ -56,7 +57,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-colors min-w-[64px]',
+                  'flex flex-col items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors min-w-[56px]',
                   isActive
                     ? 'text-primary'
                     : 'text-muted-foreground'

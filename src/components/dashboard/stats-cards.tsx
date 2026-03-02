@@ -1,8 +1,9 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, UserCheck, UserX, Clock } from 'lucide-react'
+import { Users, UserCheck, UserX, Clock, HelpCircle, Gift } from 'lucide-react'
 import type { GuestStats } from '@/lib/types'
+import { formatCurrency } from '@/lib/utils'
 
 interface StatsCardsProps {
   stats: GuestStats
@@ -32,13 +33,29 @@ export function StatsCards({ stats }: StatsCardsProps) {
     {
       label: 'ממתינים',
       value: stats.pending,
+      sub: stats.maybe > 0 ? `${stats.maybe} אולי` : undefined,
       icon: Clock,
       color: 'text-amber-600 bg-amber-50',
+    },
+    {
+      label: 'אולי',
+      value: stats.maybe,
+      icon: HelpCircle,
+      color: 'text-blue-500 bg-blue-50',
+    },
+    {
+      label: 'סה"כ מתנות',
+      value: formatCurrency(stats.totalGiftAmount),
+      sub: stats.giftCount > 0
+        ? `ממוצע ${formatCurrency(Math.round(stats.totalGiftAmount / stats.giftCount))}`
+        : undefined,
+      icon: Gift,
+      color: 'text-purple-600 bg-purple-50',
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardContent className="p-4">

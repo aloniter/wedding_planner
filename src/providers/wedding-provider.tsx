@@ -45,14 +45,14 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     async function loadWedding() {
-      const { data: membership, error: memberError } = await supabase
+      const { data: membership } = await supabase
         .from('project_members')
         .select('wedding_id')
         .eq('user_id', user!.id)
         .limit(1)
-        .single()
+        .maybeSingle()
 
-      if (memberError || !membership) {
+      if (!membership) {
         if (!cancelled) {
           setWedding(null)
           setLoading(false)
@@ -113,9 +113,14 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     if (!user || !getSupabaseConfig()) return null
     const supabase = createClient()
 
-    const { data: newWedding, error: insertError } = await supabase
+    // Pre-generate the UUID so we can insert without .select() (which would fail the
+    // SELECT RLS policy before the user is added to project_members)
+    const weddingId = crypto.randomUUID()
+
+    const { error: insertError } = await supabase
       .from('weddings')
       .insert({
+        id: weddingId,
         bride_name: data.bride_name,
         groom_name: data.groom_name,
         wedding_date: data.wedding_date,
@@ -123,27 +128,42 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
         total_budget: data.total_budget,
         estimated_guests: data.estimated_guests,
       })
-      .select()
-      .single()
 
-    if (insertError || !newWedding) {
+    if (insertError) {
       setError('שגיאה ביצירת החתונה')
       return null
     }
 
-    // Add creator as owner
-    await supabase
+    // Add creator as owner — now auth.uid() matches user_id, INSERT policy passes
+    const { error: memberError } = await supabase
       .from('project_members')
       .insert({
-        wedding_id: newWedding.id,
+        wedding_id: weddingId,
         user_id: user.id,
         role: 'owner',
         joined_at: new Date().toISOString(),
       })
 
+    if (memberError) {
+      setError('שגיאה ביצירת החתונה')
+      return null
+    }
+
+    // Now SELECT the wedding — is_wedding_member(id) returns true since we're a member
+    const { data: newWedding, error: selectError } = await supabase
+      .from('weddings')
+      .select('*')
+      .eq('id', weddingId)
+      .single()
+
+    if (selectError || !newWedding) {
+      setError('שגיאה ביצירת החתונה')
+      return null
+    }
+
     // Seed default categories
     const defaultCats = DEFAULT_GUEST_CATEGORIES.map(name => ({
-      wedding_id: newWedding.id,
+      wedding_id: weddingId,
       name,
     }))
     await supabase.from('guest_categories').insert(defaultCats)

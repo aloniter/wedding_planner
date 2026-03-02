@@ -1,56 +1,98 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { WeddingTable, WeddingTableInsert, WeddingTableUpdate, Guest } from '@/lib/types'
-import { getStoredTables, setStoredTables } from '@/lib/storage'
-import { generateId } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtime } from './use-realtime'
 
 export function useTables(weddingId: string | undefined, guests: Guest[] = []) {
   const [tables, setTables] = useState<WeddingTable[]>([])
   const [loading, setLoading] = useState(true)
+  const tablesRef = useRef(tables)
+  tablesRef.current = tables
+
+  const supabase = createClient()
 
   useEffect(() => {
     if (!weddingId) return
-    const stored = getStoredTables().filter(t => t.wedding_id === weddingId)
-    setTables(stored)
-    setLoading(false)
-  }, [weddingId])
+    let cancelled = false
 
-  const persist = useCallback((updated: WeddingTable[]) => {
-    const all = getStoredTables()
-    const others = all.filter(t => t.wedding_id !== weddingId)
-    setStoredTables([...others, ...updated])
-  }, [weddingId])
+    async function load() {
+      const { data, error } = await supabase
+        .from('wedding_tables')
+        .select('*')
+        .eq('wedding_id', weddingId!)
+        .order('table_number', { ascending: true })
 
-  const addTable = useCallback((data: WeddingTableInsert) => {
-    const newTable: WeddingTable = {
-      ...data,
-      id: generateId(),
-      created_at: new Date().toISOString(),
+      if (!cancelled && !error && data) {
+        setTables(data as WeddingTable[])
+      }
+      if (!cancelled) setLoading(false)
     }
-    setTables(prev => {
-      const updated = [...prev, newTable]
-      persist(updated)
-      return updated
-    })
-    return newTable
-  }, [persist])
 
-  const updateTable = useCallback((id: string, updates: WeddingTableUpdate) => {
-    setTables(prev => {
-      const updated = prev.map(t => t.id === id ? { ...t, ...updates } : t)
-      persist(updated)
-      return updated
-    })
-  }, [persist])
+    load()
+    return () => { cancelled = true }
+  }, [weddingId, supabase])
 
-  const deleteTable = useCallback((id: string) => {
-    setTables(prev => {
-      const updated = prev.filter(t => t.id !== id)
-      persist(updated)
-      return updated
-    })
-  }, [persist])
+  useRealtime<WeddingTable>('wedding_tables', weddingId, {
+    onInsert: (t) => setTables(prev =>
+      prev.find(x => x.id === t.id) ? prev : [...prev, t]
+    ),
+    onUpdate: (t) => setTables(prev => prev.map(x => {
+      if (x.id !== t.id) return x
+      return new Date(t.updated_at) >= new Date(x.updated_at) ? t : x
+    })),
+    onDelete: ({ id }) => setTables(prev => prev.filter(x => x.id !== id)),
+  })
+
+  const addTable = useCallback(async (data: WeddingTableInsert) => {
+    const { data: newTable, error } = await supabase
+      .from('wedding_tables')
+      .insert({
+        wedding_id: data.wedding_id,
+        table_number: data.table_number,
+        label: data.label,
+        seat_capacity: data.seat_capacity,
+      })
+      .select()
+      .single()
+
+    if (!error && newTable) {
+      setTables(prev =>
+        prev.find(t => t.id === newTable.id) ? prev : [...prev, newTable as WeddingTable]
+      )
+      return newTable as WeddingTable
+    }
+    return null
+  }, [supabase])
+
+  const updateTable = useCallback(async (id: string, updates: WeddingTableUpdate) => {
+    const previous = tablesRef.current
+    setTables(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
+
+    const { error } = await supabase
+      .from('wedding_tables')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) {
+      setTables(previous)
+    }
+  }, [supabase])
+
+  const deleteTable = useCallback(async (id: string) => {
+    const previous = tablesRef.current
+    setTables(prev => prev.filter(t => t.id !== id))
+
+    const { error } = await supabase
+      .from('wedding_tables')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      setTables(previous)
+    }
+  }, [supabase])
 
   const tableAssignments = useMemo(() => {
     const map = new Map<string, Guest[]>()

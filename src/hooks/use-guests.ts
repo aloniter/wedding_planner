@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import type { Guest, GuestInsert, GuestUpdate, GuestStats, RsvpStatus, GuestSide, GuestSortField, SortDirection } from '@/lib/types'
-import { getStoredGuests, setStoredGuests } from '@/lib/storage'
-import { generateId } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtime } from './use-realtime'
 
 function normalizeForDuplicateCheck(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -18,67 +18,152 @@ export function useGuests(weddingId: string | undefined) {
   const [filterCategory, setFilterCategory] = useState<string | 'all'>('all')
   const [sortField, setSortField] = useState<GuestSortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const guestsRef = useRef(guests)
+  guestsRef.current = guests
 
+  const supabase = createClient()
+
+  // Fetch guests from Supabase
   useEffect(() => {
     if (!weddingId) return
-    const stored = getStoredGuests().filter(g => g.wedding_id === weddingId)
-    setGuests(stored)
-    setLoading(false)
-  }, [weddingId])
+    let cancelled = false
 
-  const persist = useCallback((updated: Guest[]) => {
-    const allGuests = getStoredGuests()
-    const otherWeddings = allGuests.filter(g => g.wedding_id !== weddingId)
-    setStoredGuests([...otherWeddings, ...updated])
-  }, [weddingId])
+    async function load() {
+      const { data, error } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('wedding_id', weddingId!)
+        .order('created_at', { ascending: true })
 
-  const addGuest = useCallback((data: GuestInsert) => {
-    const newGuest: Guest = {
-      ...data,
-      gift_amount: data.gift_amount ?? null,
-      table_id: data.table_id ?? null,
-      id: generateId(),
-      created_at: new Date().toISOString(),
+      if (!cancelled && !error && data) {
+        setGuests(data as Guest[])
+      }
+      if (!cancelled) setLoading(false)
     }
-    setGuests(prev => {
-      const updated = [...prev, newGuest]
-      persist(updated)
-      return updated
-    })
-    return newGuest
-  }, [persist])
 
-  const addGuestsBulk = useCallback((data: GuestInsert[]) => {
-    const newGuests: Guest[] = data.map(d => ({
-      ...d,
+    load()
+    return () => { cancelled = true }
+  }, [weddingId, supabase])
+
+  // Real-time subscriptions
+  useRealtime<Guest>('guests', weddingId, {
+    onInsert: (newGuest) => {
+      setGuests(prev =>
+        prev.find(g => g.id === newGuest.id) ? prev : [...prev, newGuest]
+      )
+    },
+    onUpdate: (updatedGuest) => {
+      setGuests(prev => prev.map(g => {
+        if (g.id !== updatedGuest.id) return g
+        const incomingTime = new Date(updatedGuest.updated_at).getTime()
+        const localTime = new Date(g.updated_at).getTime()
+        return incomingTime >= localTime ? updatedGuest : g
+      }))
+    },
+    onDelete: ({ id }) => {
+      setGuests(prev => prev.filter(g => g.id !== id))
+    },
+  })
+
+  const addGuest = useCallback(async (data: GuestInsert) => {
+    const { data: newGuest, error } = await supabase
+      .from('guests')
+      .insert({
+        wedding_id: data.wedding_id,
+        full_name: data.full_name,
+        phone: data.phone,
+        side: data.side,
+        group_name: data.group_name,
+        adults_count: data.adults_count,
+        kids_count: data.kids_count,
+        rsvp_status: data.rsvp_status,
+        gift_amount: data.gift_amount ?? null,
+        table_id: data.table_id ?? null,
+        notes: data.notes,
+      })
+      .select()
+      .single()
+
+    if (!error && newGuest) {
+      setGuests(prev =>
+        prev.find(g => g.id === newGuest.id) ? prev : [...prev, newGuest as Guest]
+      )
+      return newGuest as Guest
+    }
+    return null
+  }, [supabase])
+
+  const addGuestsBulk = useCallback(async (data: GuestInsert[]) => {
+    const rows = data.map(d => ({
+      wedding_id: d.wedding_id,
+      full_name: d.full_name,
+      phone: d.phone,
+      side: d.side,
+      group_name: d.group_name,
+      adults_count: d.adults_count,
+      kids_count: d.kids_count,
+      rsvp_status: d.rsvp_status,
       gift_amount: d.gift_amount ?? null,
       table_id: d.table_id ?? null,
-      id: generateId(),
-      created_at: new Date().toISOString(),
+      notes: d.notes,
     }))
-    setGuests(prev => {
-      const updated = [...prev, ...newGuests]
-      persist(updated)
-      return updated
-    })
-    return newGuests
-  }, [persist])
 
-  const updateGuest = useCallback((id: string, updates: GuestUpdate) => {
-    setGuests(prev => {
-      const updated = prev.map(g => g.id === id ? { ...g, ...updates } : g)
-      persist(updated)
-      return updated
-    })
-  }, [persist])
+    // Insert in batches of 100
+    const BATCH = 100
+    const allNew: Guest[] = []
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH)
+      const { data: inserted, error } = await supabase
+        .from('guests')
+        .insert(batch)
+        .select()
 
-  const deleteGuest = useCallback((id: string) => {
-    setGuests(prev => {
-      const updated = prev.filter(g => g.id !== id)
-      persist(updated)
-      return updated
-    })
-  }, [persist])
+      if (!error && inserted) {
+        allNew.push(...(inserted as Guest[]))
+      }
+    }
+
+    if (allNew.length > 0) {
+      setGuests(prev => {
+        const existingIds = new Set(prev.map(g => g.id))
+        const toAdd = allNew.filter(g => !existingIds.has(g.id))
+        return [...prev, ...toAdd]
+      })
+    }
+    return allNew
+  }, [supabase])
+
+  const updateGuest = useCallback(async (id: string, updates: GuestUpdate) => {
+    const previous = guestsRef.current
+
+    // Optimistic update
+    setGuests(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g))
+
+    const { error } = await supabase
+      .from('guests')
+      .update(updates)
+      .eq('id', id)
+
+    if (error) {
+      setGuests(previous)
+    }
+  }, [supabase])
+
+  const deleteGuest = useCallback(async (id: string) => {
+    const previous = guestsRef.current
+
+    // Optimistic delete
+    setGuests(prev => prev.filter(g => g.id !== id))
+
+    const { error } = await supabase
+      .from('guests')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      setGuests(previous)
+    }
+  }, [supabase])
 
   const stats: GuestStats = useMemo(() => {
     return guests.reduce<GuestStats>(
@@ -146,7 +231,6 @@ export function useGuests(weddingId: string | undefined) {
       const nameKey = normalizeForDuplicateCheck(guest.full_name)
       const phoneKey = guest.phone ? guest.phone.replace(/[\s\-\(\)\.]/g, '') : null
 
-      // Try phone-based grouping first
       const key = phoneKey || nameKey
       const existing = groups.get(key)
       if (existing) {
@@ -156,7 +240,6 @@ export function useGuests(weddingId: string | undefined) {
       }
     }
 
-    // Also check for name-based duplicates separately
     const nameGroups = new Map<string, Guest[]>()
     for (const guest of guests) {
       const nameKey = normalizeForDuplicateCheck(guest.full_name)
@@ -168,7 +251,6 @@ export function useGuests(weddingId: string | undefined) {
       }
     }
 
-    // Merge both duplicate sources
     const allDuplicates = new Map<string, Guest[]>()
     for (const [, group] of groups) {
       if (group.length > 1) {

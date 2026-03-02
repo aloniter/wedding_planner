@@ -11,6 +11,8 @@ import { BudgetProgress } from '@/components/dashboard/budget-progress'
 import { VendorsDue } from '@/components/dashboard/vendors-due'
 import { WeddingDetailsEditor } from '@/components/dashboard/wedding-details-editor'
 import { GiftSummary } from '@/components/dashboard/gift-summary'
+import { InvitePartnerDialog } from '@/components/dashboard/invite-partner-dialog'
+import { MigrationBanner } from '@/components/dashboard/migration-banner'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -35,8 +37,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Editable Wedding Details */}
-      <WeddingDetailsEditor wedding={wedding} onUpdate={updateWedding} />
+      {/* Migration banner for existing localStorage data */}
+      <MigrationBanner weddingId={wedding.id} />
+
+      {/* Editable Wedding Details + Invite Partner */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <WeddingDetailsEditor wedding={wedding} onUpdate={updateWedding} />
+        </div>
+        <InvitePartnerDialog weddingId={wedding.id} />
+      </div>
 
       {/* Guest Stats */}
       <StatsCards stats={stats} />

@@ -19,6 +19,7 @@ export interface Wedding {
   total_budget: number
   estimated_guests: number | null
   created_at: string
+  updated_at: string
 }
 
 export interface Guest {
@@ -35,6 +36,7 @@ export interface Guest {
   table_id: string | null
   notes: string | null
   created_at: string
+  updated_at: string
 }
 
 export interface Vendor {
@@ -47,15 +49,16 @@ export interface Vendor {
   deposit_paid: number
   notes: string | null
   created_at: string
+  updated_at: string
 }
 
-export type GuestInsert = Omit<Guest, 'id' | 'created_at'>
-export type GuestUpdate = Partial<Omit<Guest, 'id' | 'wedding_id' | 'created_at'>>
+export type GuestInsert = Omit<Guest, 'id' | 'created_at' | 'updated_at'>
+export type GuestUpdate = Partial<Omit<Guest, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
-export type VendorInsert = Omit<Vendor, 'id' | 'created_at'>
-export type VendorUpdate = Partial<Omit<Vendor, 'id' | 'wedding_id' | 'created_at'>>
+export type VendorInsert = Omit<Vendor, 'id' | 'created_at' | 'updated_at'>
+export type VendorUpdate = Partial<Omit<Vendor, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
-export type WeddingUpdate = Partial<Omit<Wedding, 'id' | 'created_at'>>
+export type WeddingUpdate = Partial<Omit<Wedding, 'id' | 'created_at' | 'updated_at'>>
 
 export interface GuestStats {
   total: number
@@ -77,10 +80,11 @@ export interface WeddingTable {
   label: string | null
   seat_capacity: number
   created_at: string
+  updated_at: string
 }
 
-export type WeddingTableInsert = Omit<WeddingTable, 'id' | 'created_at'>
-export type WeddingTableUpdate = Partial<Omit<WeddingTable, 'id' | 'wedding_id' | 'created_at'>>
+export type WeddingTableInsert = Omit<WeddingTable, 'id' | 'created_at' | 'updated_at'>
+export type WeddingTableUpdate = Partial<Omit<WeddingTable, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
 // Custom guest categories
 export interface GuestCategory {
@@ -89,9 +93,21 @@ export interface GuestCategory {
   name: string
   color: string | null
   created_at: string
+  updated_at: string
 }
 
-export type GuestCategoryInsert = Omit<GuestCategory, 'id' | 'created_at'>
+export type GuestCategoryInsert = Omit<GuestCategory, 'id' | 'created_at' | 'updated_at'>
+
+// Project members for shared access
+export interface ProjectMember {
+  id: string
+  wedding_id: string
+  user_id: string
+  role: 'owner' | 'partner'
+  invited_email: string | null
+  joined_at: string | null
+  created_at: string
+}
 
 // Sorting
 export type GuestSortField = 'full_name' | 'group_name' | 'gift_amount' | 'rsvp_status' | 'created_at'

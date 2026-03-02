@@ -1,4 +1,4 @@
-export type RsvpStatus = 'ממתין' | 'אישר' | 'ביטל'
+export type RsvpStatus = 'ממתין' | 'אישר' | 'ביטל' | 'אולי'
 export type GuestSide = 'חתן' | 'כלה' | 'משותף'
 export type VendorCategory =
   | 'אולם'
@@ -17,6 +17,7 @@ export interface Wedding {
   wedding_date: string | null
   venue_name: string | null
   total_budget: number
+  estimated_guests: number | null
   created_at: string
 }
 
@@ -30,6 +31,8 @@ export interface Guest {
   adults_count: number
   kids_count: number
   rsvp_status: RsvpStatus
+  gift_amount: number | null
+  table_id: string | null
   notes: string | null
   created_at: string
 }
@@ -59,9 +62,40 @@ export interface GuestStats {
   confirmed: number
   declined: number
   pending: number
+  maybe: number
   totalAdults: number
   totalKids: number
+  totalGiftAmount: number
+  giftCount: number
 }
+
+// Table planning
+export interface WeddingTable {
+  id: string
+  wedding_id: string
+  table_number: number
+  label: string | null
+  seat_capacity: number
+  created_at: string
+}
+
+export type WeddingTableInsert = Omit<WeddingTable, 'id' | 'created_at'>
+export type WeddingTableUpdate = Partial<Omit<WeddingTable, 'id' | 'wedding_id' | 'created_at'>>
+
+// Custom guest categories
+export interface GuestCategory {
+  id: string
+  wedding_id: string
+  name: string
+  color: string | null
+  created_at: string
+}
+
+export type GuestCategoryInsert = Omit<GuestCategory, 'id' | 'created_at'>
+
+// Sorting
+export type GuestSortField = 'full_name' | 'group_name' | 'gift_amount' | 'rsvp_status' | 'created_at'
+export type SortDirection = 'asc' | 'desc'
 
 // Imported phone contacts (workspace model, separate from guests)
 export interface ImportedContact {

@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation'
 import { useWedding } from '@/hooks/use-wedding'
 import { useGuests } from '@/hooks/use-guests'
 import { useVendors } from '@/hooks/use-vendors'
+import { useCategories } from '@/hooks/use-categories'
 import { StatsCards } from '@/components/dashboard/stats-cards'
 import { BudgetProgress } from '@/components/dashboard/budget-progress'
 import { VendorsDue } from '@/components/dashboard/vendors-due'
-import { formatDate, daysUntilWedding } from '@/lib/utils'
+import { WeddingDetailsEditor } from '@/components/dashboard/wedding-details-editor'
+import { GiftSummary } from '@/components/dashboard/gift-summary'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { wedding, loading: weddingLoading } = useWedding()
-  const { stats, loading: guestsLoading } = useGuests(wedding?.id)
+  const { wedding, loading: weddingLoading, updateWedding } = useWedding()
+  const { allGuests, stats, loading: guestsLoading } = useGuests(wedding?.id)
   const { vendors, totals, loading: vendorsLoading } = useVendors(wedding?.id)
+  const { categories } = useCategories(wedding?.id)
 
   useEffect(() => {
     if (!weddingLoading && !wedding) {
@@ -30,35 +33,26 @@ export default function DashboardPage() {
     )
   }
 
-  const daysLeft = daysUntilWedding(wedding.wedding_date)
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-1">
-        <h1 className="text-2xl font-bold">
-          חתונת {wedding.groom_name} ו{wedding.bride_name} 🎊
-        </h1>
-        <p className="text-muted-foreground">
-          {formatDate(wedding.wedding_date)}
-          {daysLeft !== null && daysLeft > 0 && (
-            <span className="mr-2">· עוד {daysLeft} ימים</span>
-          )}
-        </p>
-      </div>
+      {/* Editable Wedding Details */}
+      <WeddingDetailsEditor wedding={wedding} onUpdate={updateWedding} />
 
       {/* Guest Stats */}
       <StatsCards stats={stats} />
 
-      {/* Budget + Vendors */}
+      {/* Gift Summary + Budget */}
       <div className="grid md:grid-cols-2 gap-4">
+        <GiftSummary guests={allGuests} categories={categories} />
         <BudgetProgress
           totalBudget={wedding.total_budget}
           totalSpent={totals.totalPaid}
           totalRemaining={wedding.total_budget - totals.totalPaid}
         />
-        <VendorsDue vendors={vendors} />
       </div>
+
+      {/* Vendors Due */}
+      <VendorsDue vendors={vendors} />
     </div>
   )
 }

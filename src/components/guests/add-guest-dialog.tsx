@@ -21,14 +21,15 @@ import {
 } from '@/components/ui/dialog'
 import { Plus } from 'lucide-react'
 import { GUEST_SIDES } from '@/lib/constants'
-import type { GuestInsert, GuestSide } from '@/lib/types'
+import type { GuestInsert, GuestSide, GuestCategory } from '@/lib/types'
 
 interface AddGuestDialogProps {
   weddingId: string
+  categories: GuestCategory[]
   onAdd: (guest: GuestInsert) => void
 }
 
-export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
+export function AddGuestDialog({ weddingId, categories, onAdd }: AddGuestDialogProps) {
   const [open, setOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -36,6 +37,7 @@ export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
   const [groupName, setGroupName] = useState('')
   const [adultsCount, setAdultsCount] = useState('1')
   const [kidsCount, setKidsCount] = useState('0')
+  const [giftAmount, setGiftAmount] = useState('')
   const [notes, setNotes] = useState('')
 
   const resetForm = () => {
@@ -45,6 +47,7 @@ export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
     setGroupName('')
     setAdultsCount('1')
     setKidsCount('0')
+    setGiftAmount('')
     setNotes('')
   }
 
@@ -52,15 +55,19 @@ export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
     e.preventDefault()
     if (!fullName.trim()) return
 
+    const parsedGift = giftAmount ? Number(giftAmount) : null
+
     onAdd({
       wedding_id: weddingId,
       full_name: fullName.trim(),
       phone: phone.trim() || null,
       side,
-      group_name: groupName.trim() || null,
+      group_name: groupName || null,
       adults_count: parseInt(adultsCount) || 1,
       kids_count: parseInt(kidsCount) || 0,
       rsvp_status: 'ממתין',
+      gift_amount: parsedGift && parsedGift > 0 ? parsedGift : null,
+      table_id: null,
       notes: notes.trim() || null,
     })
 
@@ -119,16 +126,21 @@ export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="group">קבוצה</Label>
-            <Input
-              id="group"
-              value={groupName}
-              onChange={e => setGroupName(e.target.value)}
-              placeholder="משפחה / חברים / עבודה"
-            />
+            <Label>קטגוריה</Label>
+            <Select value={groupName} onValueChange={setGroupName}>
+              <SelectTrigger>
+                <SelectValue placeholder="בחר קטגוריה" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">ללא</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label htmlFor="adults">מבוגרים</Label>
               <Input
@@ -147,6 +159,17 @@ export function AddGuestDialog({ weddingId, onAdd }: AddGuestDialogProps) {
                 min="0"
                 value={kidsCount}
                 onChange={e => setKidsCount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gift">מתנה (₪)</Label>
+              <Input
+                id="gift"
+                type="number"
+                min="0"
+                value={giftAmount}
+                onChange={e => setGiftAmount(e.target.value)}
+                placeholder="0"
               />
             </div>
           </div>

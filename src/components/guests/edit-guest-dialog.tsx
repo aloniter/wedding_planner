@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GUEST_SIDES, RSVP_STATUSES } from '@/lib/constants'
-import type { Guest, GuestUpdate, GuestSide, RsvpStatus } from '@/lib/types'
+import type { Guest, GuestUpdate, GuestSide, RsvpStatus, GuestCategory, WeddingTable } from '@/lib/types'
 
 interface EditGuestDialogProps {
   guest: Guest
@@ -27,9 +27,11 @@ interface EditGuestDialogProps {
   onOpenChange: (open: boolean) => void
   onUpdate: (id: string, updates: GuestUpdate) => void
   onDelete: (id: string) => void
+  categories?: GuestCategory[]
+  tables?: WeddingTable[]
 }
 
-export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete }: EditGuestDialogProps) {
+export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete, categories = [], tables = [] }: EditGuestDialogProps) {
   const [fullName, setFullName] = useState(guest.full_name)
   const [phone, setPhone] = useState(guest.phone || '')
   const [side, setSide] = useState<GuestSide>(guest.side)
@@ -37,20 +39,26 @@ export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete 
   const [adultsCount, setAdultsCount] = useState(String(guest.adults_count))
   const [kidsCount, setKidsCount] = useState(String(guest.kids_count))
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus>(guest.rsvp_status)
+  const [giftAmount, setGiftAmount] = useState(guest.gift_amount != null ? String(guest.gift_amount) : '')
+  const [tableId, setTableId] = useState(guest.table_id || '')
   const [notes, setNotes] = useState(guest.notes || '')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!fullName.trim()) return
 
+    const parsedGift = giftAmount ? Number(giftAmount) : null
+
     onUpdate(guest.id, {
       full_name: fullName.trim(),
       phone: phone.trim() || null,
       side,
-      group_name: groupName.trim() || null,
+      group_name: groupName || null,
       adults_count: parseInt(adultsCount) || 1,
       kids_count: parseInt(kidsCount) || 0,
       rsvp_status: rsvpStatus,
+      gift_amount: parsedGift && parsedGift > 0 ? parsedGift : null,
+      table_id: tableId || null,
       notes: notes.trim() || null,
     })
     onOpenChange(false)
@@ -106,13 +114,18 @@ export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-group">קבוצה</Label>
-            <Input
-              id="edit-group"
-              value={groupName}
-              onChange={e => setGroupName(e.target.value)}
-              placeholder="משפחה / חברים / עבודה"
-            />
+            <Label>קטגוריה</Label>
+            <Select value={groupName} onValueChange={setGroupName}>
+              <SelectTrigger>
+                <SelectValue placeholder="בחר קטגוריה" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">ללא</SelectItem>
+                {categories.map(c => (
+                  <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -149,6 +162,38 @@ export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete 
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="edit-gift">מתנה (₪)</Label>
+              <Input
+                id="edit-gift"
+                type="number"
+                min="0"
+                value={giftAmount}
+                onChange={e => setGiftAmount(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            {tables.length > 0 && (
+              <div className="space-y-2">
+                <Label>שולחן</Label>
+                <Select value={tableId} onValueChange={setTableId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="בחר שולחן" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">ללא</SelectItem>
+                    {tables.map(t => (
+                      <SelectItem key={t.id} value={t.id}>
+                        שולחן {t.table_number}{t.label ? ` - ${t.label}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

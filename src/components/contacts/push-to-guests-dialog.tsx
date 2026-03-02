@@ -51,6 +51,8 @@ export function PushToGuestsDialog({
       adults_count: 1,
       kids_count: 0,
       rsvp_status: 'ממתין',
+      gift_amount: null,
+      table_id: null,
       notes: null,
     }))
     onPush(guests)

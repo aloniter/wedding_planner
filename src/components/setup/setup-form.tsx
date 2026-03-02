@@ -29,6 +29,7 @@ export function SetupForm() {
       wedding_date: weddingDate || null,
       venue_name: venueName.trim() || null,
       total_budget: parseInt(totalBudget) || 0,
+      estimated_guests: null,
     })
     router.push('/')
   }

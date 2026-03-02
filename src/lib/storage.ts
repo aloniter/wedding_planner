@@ -1,10 +1,12 @@
-import type { Wedding, Guest, Vendor, ImportedContact } from './types'
+import type { Wedding, Guest, Vendor, ImportedContact, WeddingTable, GuestCategory } from './types'
 
 const KEYS = {
   wedding: 'wedding_data',
   guests: 'guests_data',
   vendors: 'vendors_data',
   contacts: 'contacts_data',
+  tables: 'tables_data',
+  categories: 'categories_data',
 } as const
 
 function getItem<T>(key: string): T | null {
@@ -23,18 +25,28 @@ function setItem<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
-// Wedding
+// Wedding (with migration for new fields)
 export function getStoredWedding(): Wedding | null {
-  return getItem<Wedding>(KEYS.wedding)
+  const w = getItem<Record<string, unknown>>(KEYS.wedding)
+  if (!w) return null
+  return {
+    ...w,
+    estimated_guests: w.estimated_guests ?? null,
+  } as Wedding
 }
 
 export function setStoredWedding(wedding: Wedding): void {
   setItem(KEYS.wedding, wedding)
 }
 
-// Guests
+// Guests (with migration for new fields)
 export function getStoredGuests(): Guest[] {
-  return getItem<Guest[]>(KEYS.guests) ?? []
+  const guests = getItem<Record<string, unknown>[]>(KEYS.guests) ?? []
+  return guests.map(g => ({
+    ...g,
+    gift_amount: g.gift_amount ?? null,
+    table_id: g.table_id ?? null,
+  })) as Guest[]
 }
 
 export function setStoredGuests(guests: Guest[]): void {
@@ -57,4 +69,22 @@ export function getStoredContacts(): ImportedContact[] {
 
 export function setStoredContacts(contacts: ImportedContact[]): void {
   setItem(KEYS.contacts, contacts)
+}
+
+// Tables
+export function getStoredTables(): WeddingTable[] {
+  return getItem<WeddingTable[]>(KEYS.tables) ?? []
+}
+
+export function setStoredTables(tables: WeddingTable[]): void {
+  setItem(KEYS.tables, tables)
+}
+
+// Categories
+export function getStoredCategories(): GuestCategory[] {
+  return getItem<GuestCategory[]>(KEYS.categories) ?? []
+}
+
+export function setStoredCategories(categories: GuestCategory[]): void {
+  setItem(KEYS.categories, categories)
 }

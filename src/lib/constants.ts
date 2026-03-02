@@ -3,6 +3,7 @@ import type { RsvpStatus, GuestSide, VendorCategory } from './types'
 export const RSVP_STATUSES: { value: RsvpStatus; label: string; emoji: string }[] = [
   { value: 'ממתין', label: 'ממתין', emoji: '⏳' },
   { value: 'אישר', label: 'אישר', emoji: '✅' },
+  { value: 'אולי', label: 'אולי', emoji: '🤔' },
   { value: 'ביטל', label: 'ביטל', emoji: '❌' },
 ]
 
@@ -32,3 +33,12 @@ export const CONTACT_GROUP_PRESETS = [
 ] as const
 
 export type ContactGroupPreset = typeof CONTACT_GROUP_PRESETS[number]
+
+export const DEFAULT_GUEST_CATEGORIES = [
+  'משפחה',
+  'חברים',
+  'עבודה',
+  'שכנים',
+  'צבא',
+  'אחר',
+] as const

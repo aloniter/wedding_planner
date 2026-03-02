@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 import { useWedding } from '@/hooks/use-wedding'
-import { generateId } from '@/lib/utils'
 
 export function SetupForm() {
   const router = useRouter()
@@ -17,13 +17,14 @@ export function SetupForm() {
   const [weddingDate, setWeddingDate] = useState('')
   const [venueName, setVenueName] = useState('')
   const [totalBudget, setTotalBudget] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!groomName.trim() || !brideName.trim()) return
+    if (!groomName.trim() || !brideName.trim() || submitting) return
 
-    createWedding({
-      id: generateId(),
+    setSubmitting(true)
+    const result = await createWedding({
       bride_name: brideName.trim(),
       groom_name: groomName.trim(),
       wedding_date: weddingDate || null,
@@ -31,7 +32,12 @@ export function SetupForm() {
       total_budget: parseInt(totalBudget) || 0,
       estimated_guests: null,
     })
-    router.push('/')
+
+    if (result) {
+      router.push('/')
+    } else {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -100,8 +106,15 @@ export function SetupForm() {
               />
             </div>
 
-            <Button type="submit" className="w-full text-lg py-6" size="lg">
-              יאללה, מתחילים! 🎊
+            <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin ml-2" />
+                  יוצרים את החתונה...
+                </>
+              ) : (
+                'יאללה, מתחילים! 🎊'
+              )}
             </Button>
           </form>
         </CardContent>

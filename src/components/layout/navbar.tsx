@@ -2,8 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid } from 'lucide-react'
+import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/providers/auth-provider'
+import { useWeddingContext } from '@/providers/wedding-provider'
+import { usePresence } from '@/hooks/use-presence'
+import { Button } from '@/components/ui/button'
 
 const navItems = [
   { href: '/', label: 'דשבורד', icon: LayoutDashboard },
@@ -15,8 +19,11 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
+  const { user, signOut } = useAuth()
+  const { wedding } = useWeddingContext()
+  const { partnerOnline, partnerEmail } = usePresence(wedding?.id)
 
-  if (pathname === '/setup') return null
+  if (pathname === '/setup' || pathname?.startsWith('/auth')) return null
 
   return (
     <>
@@ -44,6 +51,27 @@ export function Navbar() {
               </Link>
             )
           })}
+        </div>
+        <div className="flex items-center gap-3">
+          {partnerOnline && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={partnerEmail ?? 'שותף/ה מחובר/ת'}>
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="hidden lg:inline">
+                {partnerEmail ? partnerEmail.split('@')[0] : 'שותף/ה'} מחובר/ת
+              </span>
+            </div>
+          )}
+          {user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => signOut()}
+              className="text-muted-foreground hover:text-foreground gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="text-xs max-w-[120px] truncate">{user.email}</span>
+            </Button>
+          )}
         </div>
       </nav>
 

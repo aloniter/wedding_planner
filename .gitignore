@@ -47,3 +47,4 @@ next-env.d.ts
 # claude local config (contains secrets)
 .claude/settings.json
 .claude/settings.local.json
+.mcp.json

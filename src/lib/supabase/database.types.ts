@@ -49,7 +49,7 @@ export type Database = {
         Row: {
           id: string
           wedding_id: string
-          user_id: string
+          user_id: string | null
           role: string
           invited_email: string | null
           joined_at: string | null
@@ -58,7 +58,7 @@ export type Database = {
         Insert: {
           id?: string
           wedding_id: string
-          user_id: string
+          user_id?: string | null
           role?: string
           invited_email?: string | null
           joined_at?: string | null
@@ -67,7 +67,7 @@ export type Database = {
         Update: {
           id?: string
           wedding_id?: string
-          user_id?: string
+          user_id?: string | null
           role?: string
           invited_email?: string | null
           joined_at?: string | null

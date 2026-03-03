@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,59 +20,115 @@ function GoogleIcon() {
   )
 }
 
-async function handleInvite(supabase: ReturnType<typeof createClient>, invite: string) {
+async function handleInvite(
+  supabase: ReturnType<typeof createClient>,
+  invite: string,
+): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
+  if (!user) return 'missing_user'
 
   const { data: existing } = await supabase
     .from('project_members')
     .select('id')
     .eq('wedding_id', invite)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
-  if (existing) return
+  if (existing) return null
 
   const { data: pendingInvite } = await supabase
     .from('project_members')
     .select('id')
     .eq('wedding_id', invite)
-    .eq('invited_email', user.email ?? '')
-    .is('joined_at', null)
-    .single()
+    .is('user_id', null)
+    .ilike('invited_email', user.email ?? '')
+    .maybeSingle()
 
   if (pendingInvite) {
-    await supabase
+    const { error } = await supabase
       .from('project_members')
-      .update({ user_id: user.id, joined_at: new Date().toISOString() })
+      .update({
+        user_id: user.id,
+        invited_email: (user.email ?? '').toLowerCase(),
+        joined_at: new Date().toISOString(),
+      })
       .eq('id', pendingInvite.id)
+    return error ? error.message : null
   } else {
-    await supabase
+    const { error } = await supabase
       .from('project_members')
-      .insert({ wedding_id: invite, user_id: user.id, role: 'partner', joined_at: new Date().toISOString() })
+      .insert({
+        wedding_id: invite,
+        user_id: user.id,
+        role: 'partner',
+        invited_email: (user.email ?? '').toLowerCase() || null,
+        joined_at: new Date().toISOString(),
+      })
+    return error ? error.message : null
   }
 }
 
-export default function AuthPage() {
+function AuthPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const invite = searchParams.get('invite')
+  const prefilledEmail = searchParams.get('email') ?? ''
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(prefilledEmail)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [magicLoading, setMagicLoading] = useState(false)
+  const [autoJoinLoading, setAutoJoinLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
-  const getInvite = () => new URLSearchParams(window.location.search).get('invite')
+  useEffect(() => {
+    if (!invite) return
+    const inviteId = invite
+
+    let cancelled = false
+
+    async function autoJoinIfSignedIn() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      setAutoJoinLoading(true)
+      setInfo('מחברים אתכם להזמנה...')
+      setError(null)
+
+      const inviteError = await handleInvite(supabase, inviteId)
+      if (cancelled) return
+
+      if (inviteError) {
+        setError('ההזמנה לא הושלמה. נסו שוב מהקישור שנשלח אליכם')
+        setAutoJoinLoading(false)
+        return
+      }
+
+      router.push('/')
+      router.refresh()
+    }
+
+    autoJoinIfSignedIn()
+    return () => {
+      cancelled = true
+    }
+  }, [invite, router])
+
+  const getRedirectTo = () =>
+    invite
+      ? `${window.location.origin}/auth/callback?invite=${invite}`
+      : `${window.location.origin}/auth/callback`
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError(null)
+    setInfo(null)
     const supabase = createClient()
-    const invite = getInvite()
-    const redirectTo = invite
-      ? `${window.location.origin}/auth/callback?invite=${invite}`
-      : `${window.location.origin}/auth/callback`
+    const redirectTo = getRedirectTo()
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -85,25 +141,66 @@ export default function AuthPage() {
     }
   }
 
+  const handleMagicLogin = async () => {
+    if (!email.trim()) return
+
+    setMagicLoading(true)
+    setError(null)
+    setInfo(null)
+
+    const supabase = createClient()
+    const redirectTo = getRedirectTo()
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: redirectTo,
+      },
+    })
+
+    if (error) {
+      setError(error.message)
+      setMagicLoading(false)
+      return
+    }
+
+    setInfo('שלחנו קישור כניסה למייל. לחיצה אחת ואתם בפנים')
+    setMagicLoading(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim() || !password) return
 
     setLoading(true)
     setError(null)
+    setInfo(null)
 
     const supabase = createClient()
-    const invite = getInvite()
+    const redirectTo = getRedirectTo()
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email: email.trim(), password })
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      })
       if (error) {
         setError(error.message)
         setLoading(false)
         return
       }
+
+      if (!data.session) {
+        setInfo('כדי לסיים הרשמה צריך לאשר את המייל שנשלח אליכם')
+        setLoading(false)
+        return
+      }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password })
       if (error) {
         setError(error.message)
         setLoading(false)
@@ -111,7 +208,15 @@ export default function AuthPage() {
       }
     }
 
-    if (invite) await handleInvite(supabase, invite)
+    if (invite) {
+      const inviteError = await handleInvite(supabase, invite)
+      if (inviteError) {
+        setError('התחברתם בהצלחה אבל ההזמנה לא הושלמה. נסו שוב מהקישור בהזמנה')
+        setLoading(false)
+        return
+      }
+    }
+
     router.push('/')
     router.refresh()
   }
@@ -124,6 +229,11 @@ export default function AuthPage() {
           <CardDescription className="text-base">
             התחברו כדי לנהל את החתונה ביחד
           </CardDescription>
+          {invite && (
+            <p className="text-sm text-muted-foreground pt-2">
+              הוזמנתם לניהול החתונה. אפשר להתחבר בקלות עם קישור למייל
+            </p>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <Button
@@ -132,7 +242,7 @@ export default function AuthPage() {
             className="w-full text-base py-6"
             size="lg"
             onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
+            disabled={googleLoading || loading || magicLoading || autoJoinLoading}
           >
             {googleLoading ? <Loader2 className="h-5 w-5 animate-spin ml-2" /> : <GoogleIcon />}
             התחברו עם Google
@@ -150,14 +260,14 @@ export default function AuthPage() {
           <div className="flex rounded-lg border overflow-hidden">
             <button
               type="button"
-              onClick={() => { setMode('signin'); setError(null) }}
+              onClick={() => { setMode('signin'); setError(null); setInfo(null) }}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === 'signin' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
             >
               כניסה
             </button>
             <button
               type="button"
-              onClick={() => { setMode('signup'); setError(null) }}
+              onClick={() => { setMode('signup'); setError(null); setInfo(null) }}
               className={`flex-1 py-2 text-sm font-medium transition-colors ${mode === 'signup' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
             >
               הרשמה
@@ -182,6 +292,23 @@ export default function AuthPage() {
                 />
               </div>
             </div>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={handleMagicLogin}
+              disabled={loading || googleLoading || magicLoading || autoJoinLoading || !email.trim()}
+            >
+              {magicLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                  שולח קישור...
+                </>
+              ) : (
+                'שלחו לי קישור כניסה במייל'
+              )}
+            </Button>
 
             <div className="space-y-2">
               <Label htmlFor="password">סיסמה</Label>
@@ -209,8 +336,9 @@ export default function AuthPage() {
             </div>
 
             {error && <p className="text-sm text-destructive">{error}</p>}
+            {info && <p className="text-sm text-green-600">{info}</p>}
 
-            <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={loading || googleLoading || magicLoading || autoJoinLoading}>
               {loading ? (
                 <><Loader2 className="h-5 w-5 animate-spin ml-2" />רגע...</>
               ) : mode === 'signin' ? 'כניסה' : 'הרשמה'}
@@ -219,5 +347,17 @@ export default function AuthPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <AuthPageInner />
+    </Suspense>
   )
 }

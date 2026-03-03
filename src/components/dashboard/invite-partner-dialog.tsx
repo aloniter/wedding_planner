@@ -28,36 +28,50 @@ export function InvitePartnerDialog({ weddingId }: InvitePartnerDialogProps) {
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
 
+  const normalizedEmail = email.trim().toLowerCase()
   const inviteLink = typeof window !== 'undefined'
-    ? `${window.location.origin}/auth?invite=${weddingId}`
+    ? `${window.location.origin}/auth?invite=${weddingId}${normalizedEmail ? `&email=${encodeURIComponent(normalizedEmail)}` : ''}`
     : ''
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !user) return
+    if (!normalizedEmail || !user) return
+    if (normalizedEmail === user.email?.toLowerCase()) {
+      setError('אי אפשר להזמין את אותה כתובת אימייל')
+      return
+    }
 
     setLoading(true)
     setError(null)
 
-    // Create a pending project_members row
     const supabase = createClient()
+    await supabase
+      .from('project_members')
+      .delete()
+      .eq('wedding_id', weddingId)
+      .is('user_id', null)
+      .ilike('invited_email', normalizedEmail)
+
     const { error: insertError } = await supabase
       .from('project_members')
       .insert({
         wedding_id: weddingId,
-        user_id: user.id, // Temporary — will be replaced when partner accepts
+        user_id: null,
         role: 'partner',
-        invited_email: email.trim(),
+        invited_email: normalizedEmail,
       })
 
     if (insertError) {
-      // If duplicate, that's fine
-      if (!insertError.message.includes('duplicate')) {
-        setError('שגיאה בשליחת ההזמנה')
-        setLoading(false)
-        return
-      }
+      setError('שגיאה בהכנת ההזמנה')
+      setLoading(false)
+      return
     }
+
+    const subject = encodeURIComponent('הזמנה לניהול החתונה שלנו')
+    const body = encodeURIComponent(
+      `היי,\n\nהזמנתי אותך להצטרף לניהול החתונה שלנו.\n\nהקישור להזמנה:\n${inviteLink}\n\nאחרי פתיחת הקישור אפשר להתחבר בקלות עם קישור כניסה במייל.`,
+    )
+    window.location.href = `mailto:${encodeURIComponent(normalizedEmail)}?subject=${subject}&body=${body}`
 
     setLoading(false)
     setSent(true)
@@ -100,7 +114,10 @@ export function InvitePartnerDialog({ weddingId }: InvitePartnerDialogProps) {
           <div className="text-center space-y-4 py-4">
             <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
             <p className="text-sm text-muted-foreground">
-              שלחו את הקישור הבא ל-<span className="font-medium text-foreground">{email}</span>:
+              ההזמנה מוכנה עבור <span className="font-medium text-foreground">{normalizedEmail}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              נפתח חלון מייל לשליחה. אם לא נפתח, אפשר להעתיק את הקישור ולשלוח ידנית
             </p>
             <div className="flex gap-2">
               <Input value={inviteLink} readOnly dir="ltr" className="text-xs" />
@@ -135,10 +152,10 @@ export function InvitePartnerDialog({ weddingId }: InvitePartnerDialogProps) {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin ml-2" />
-                  שולח...
+                  מכין הזמנה...
                 </>
               ) : (
-                'צור קישור הזמנה'
+                'שלח הזמנה במייל'
               )}
             </Button>
 

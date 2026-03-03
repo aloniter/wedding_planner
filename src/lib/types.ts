@@ -102,7 +102,7 @@ export type GuestCategoryInsert = Omit<GuestCategory, 'id' | 'created_at' | 'upd
 export interface ProjectMember {
   id: string
   wedding_id: string
-  user_id: string
+  user_id: string | null
   role: 'owner' | 'partner'
   invited_email: string | null
   joined_at: string | null

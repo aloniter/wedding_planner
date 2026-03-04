@@ -65,7 +65,7 @@ export default function GuestsPage() {
         title="ניהול אורחים"
         subtitle={`${stats.total} מוזמנים · ${stats.totalAdults + stats.totalKids} אנשים`}
         action={
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap justify-end">
             <AddGuestDialog weddingId={wedding.id} categories={categories} onAdd={addGuest} />
             <CsvImportDialog
               weddingId={wedding.id}

@@ -13,10 +13,10 @@ function getNavItems(slug: string) {
   return [
     { href: `/wedding/${slug}`, label: 'דשבורד', icon: LayoutDashboard },
     { href: `/wedding/${slug}/guests`, label: 'אורחים', icon: Users },
-    { href: `/wedding/${slug}/venues`, label: 'אולמות', icon: Building2 },
     { href: `/wedding/${slug}/tables`, label: 'שולחנות', icon: LayoutGrid },
     { href: `/wedding/${slug}/budget`, label: 'תקציב', icon: Wallet },
-    { href: `/wedding/${slug}/contacts`, label: 'אנשי קשר', icon: BookUser },
+    // { href: `/wedding/${slug}/contacts`, label: 'אנשי קשר', icon: BookUser },
+    { href: `/wedding/${slug}/venues`, label: 'אולמות', icon: Building2 },
   ]
 }
 

@@ -42,6 +42,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       .from('weddings')
       .insert({
         id: weddingId,
+        slug: '',
         bride_name: data.bride_name,
         groom_name: data.groom_name,
         wedding_date: data.wedding_date,

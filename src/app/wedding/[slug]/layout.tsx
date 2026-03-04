@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { WeddingSlugProvider } from '@/providers/wedding-slug-provider'
 import { PublicNavbar } from '@/components/layout/public-navbar'
+import { WeddingGuard } from './wedding-guard'
 
 export default async function WeddingLayout({
   children,
@@ -15,7 +16,7 @@ export default async function WeddingLayout({
     <WeddingSlugProvider slug={slug}>
       <PublicNavbar slug={slug} />
       <main className="container mx-auto px-4 py-6 max-w-5xl">
-        {children}
+        <WeddingGuard>{children}</WeddingGuard>
       </main>
     </WeddingSlugProvider>
   )

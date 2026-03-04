@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import { Heebo } from "next/font/google"
-import { Navbar } from "@/components/layout/navbar"
 import { Providers } from "@/providers"
 import "./globals.css"
 
@@ -28,18 +27,8 @@ export default function RootLayout({
       </head>
       <body className="font-sans min-h-screen pb-20 md:pb-0">
         <Providers>
-          <Navbar />
           {children}
         </Providers>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(() => {})
-              }
-            `,
-          }}
-        />
       </body>
     </html>
   )

@@ -1,8 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
-import { useAuth } from './auth-provider'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
 import { DEFAULT_GUEST_CATEGORIES } from '@/lib/constants'
 
@@ -10,13 +9,13 @@ interface WeddingContextValue {
   wedding: Wedding | null
   loading: boolean
   error: string | null
-  createWedding: (data: Omit<Wedding, 'id' | 'created_at' | 'updated_at'>) => Promise<Wedding | null>
+  createWedding: (data: Omit<Wedding, 'id' | 'slug' | 'created_at' | 'updated_at'>) => Promise<Wedding | null>
   updateWedding: (updates: WeddingUpdate) => Promise<void>
 }
 
 const WeddingContext = createContext<WeddingContextValue>({
   wedding: null,
-  loading: true,
+  loading: false,
   error: null,
   createWedding: async () => null,
   updateWedding: async () => {},
@@ -27,94 +26,16 @@ export function useWeddingContext() {
 }
 
 export function WeddingProvider({ children }: { children: ReactNode }) {
-  const { user, loading: authLoading } = useAuth()
   const [wedding, setWedding] = useState<Wedding | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Load user's wedding via project_members
-  useEffect(() => {
-    if (authLoading) return
-    if (!user || !getSupabaseConfig()) {
-      setWedding(null)
-      setLoading(false)
-      return
-    }
-
-    const supabase = createClient()
-    let cancelled = false
-
-    async function loadWedding() {
-      const { data: membership } = await supabase
-        .from('project_members')
-        .select('wedding_id')
-        .eq('user_id', user!.id)
-        .limit(1)
-        .maybeSingle()
-
-      if (!membership) {
-        if (!cancelled) {
-          setWedding(null)
-          setLoading(false)
-        }
-        return
-      }
-
-      const { data: weddingData, error: weddingError } = await supabase
-        .from('weddings')
-        .select('*')
-        .eq('id', membership.wedding_id)
-        .single()
-
-      if (!cancelled) {
-        if (weddingError || !weddingData) {
-          setWedding(null)
-          setError('לא הצלחנו לטעון את נתוני החתונה')
-        } else {
-          setWedding(weddingData as Wedding)
-        }
-        setLoading(false)
-      }
-    }
-
-    loadWedding()
-    return () => { cancelled = true }
-  }, [user, authLoading])
-
-  // Subscribe to wedding updates
-  useEffect(() => {
-    if (!wedding?.id || !getSupabaseConfig()) return
-
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`wedding:${wedding.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'weddings',
-          filter: `id=eq.${wedding.id}`,
-        },
-        (payload) => {
-          setWedding(payload.new as Wedding)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [wedding?.id])
-
   const createWedding = useCallback(async (
-    data: Omit<Wedding, 'id' | 'created_at' | 'updated_at'>
+    data: Omit<Wedding, 'id' | 'slug' | 'created_at' | 'updated_at'>
   ): Promise<Wedding | null> => {
-    if (!user || !getSupabaseConfig()) return null
+    if (!getSupabaseConfig()) return null
     const supabase = createClient()
 
-    // Pre-generate the UUID so we can insert without .select() (which would fail the
-    // SELECT RLS policy before the user is added to project_members)
     const weddingId = crypto.randomUUID()
 
     const { error: insertError } = await supabase
@@ -134,22 +55,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    // Add creator as owner — now auth.uid() matches user_id, INSERT policy passes
-    const { error: memberError } = await supabase
-      .from('project_members')
-      .insert({
-        wedding_id: weddingId,
-        user_id: user.id,
-        role: 'owner',
-        joined_at: new Date().toISOString(),
-      })
-
-    if (memberError) {
-      setError('שגיאה ביצירת החתונה')
-      return null
-    }
-
-    // Now SELECT the wedding — is_wedding_member(id) returns true since we're a member
+    // Fetch the created wedding to get the auto-generated slug
     const { data: newWedding, error: selectError } = await supabase
       .from('weddings')
       .select('*')
@@ -171,13 +77,12 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     const result = newWedding as Wedding
     setWedding(result)
     return result
-  }, [user])
+  }, [])
 
   const updateWedding = useCallback(async (updates: WeddingUpdate) => {
     if (!wedding || !getSupabaseConfig()) return
     const supabase = createClient()
 
-    // Optimistic update
     const previous = wedding
     setWedding({ ...wedding, ...updates })
 

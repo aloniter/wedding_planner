@@ -2,16 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/providers/auth-provider'
-import { useWeddingContext } from '@/providers/wedding-provider'
-import { usePresence } from '@/hooks/use-presence'
-import { Button } from '@/components/ui/button'
 
 const navItems = [
   { href: '/', label: 'דשבורד', icon: LayoutDashboard },
   { href: '/guests', label: 'אורחים', icon: Users },
+  { href: '/venues', label: 'אולמות', icon: Building2 },
   { href: '/tables', label: 'שולחנות', icon: LayoutGrid },
   { href: '/budget', label: 'תקציב', icon: Wallet },
   { href: '/contacts', label: 'אנשי קשר', icon: BookUser },
@@ -19,18 +16,16 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
-  const { wedding } = useWeddingContext()
-  const { partnerOnline, partnerEmail } = usePresence(wedding?.id)
 
-  if (pathname === '/setup' || pathname?.startsWith('/auth')) return null
+  // Hide on setup, auth, and wedding (public dashboard) routes
+  if (pathname === '/setup' || pathname?.startsWith('/auth') || pathname?.startsWith('/wedding')) return null
 
   return (
     <>
       {/* Desktop top navbar */}
       <nav className="hidden md:flex items-center justify-between border-b bg-white/80 backdrop-blur-sm px-6 py-3 sticky top-0 z-50">
         <Link href="/" className="text-xl font-bold text-primary">
-          חתונה שלנו 💍
+          חתונה שלנו
         </Link>
         <div className="flex items-center gap-1">
           {navItems.map((item) => {
@@ -52,27 +47,7 @@ export function Navbar() {
             )
           })}
         </div>
-        <div className="flex items-center gap-3">
-          {partnerOnline && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" title={partnerEmail ?? 'שותף/ה מחובר/ת'}>
-              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="hidden lg:inline">
-                {partnerEmail ? partnerEmail.split('@')[0] : 'שותף/ה'} מחובר/ת
-              </span>
-            </div>
-          )}
-          {user && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => signOut()}
-              className="text-muted-foreground hover:text-foreground gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="text-xs max-w-[120px] truncate">{user.email}</span>
-            </Button>
-          )}
-        </div>
+        <div />
       </nav>
 
       {/* Mobile bottom tab bar */}

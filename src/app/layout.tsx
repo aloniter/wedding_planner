@@ -29,9 +29,7 @@ export default function RootLayout({
       <body className="font-sans min-h-screen pb-20 md:pb-0">
         <Providers>
           <Navbar />
-          <main className="container mx-auto px-4 py-6 max-w-5xl">
-            {children}
-          </main>
+          {children}
         </Providers>
         <script
           dangerouslySetInnerHTML={{

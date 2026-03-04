@@ -12,6 +12,7 @@ export type VendorCategory =
 
 export interface Wedding {
   id: string
+  slug: string
   bride_name: string
   groom_name: string
   wedding_date: string | null
@@ -58,7 +59,7 @@ export type GuestUpdate = Partial<Omit<Guest, 'id' | 'wedding_id' | 'created_at'
 export type VendorInsert = Omit<Vendor, 'id' | 'created_at' | 'updated_at'>
 export type VendorUpdate = Partial<Omit<Vendor, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
-export type WeddingUpdate = Partial<Omit<Wedding, 'id' | 'created_at' | 'updated_at'>>
+export type WeddingUpdate = Partial<Omit<Wedding, 'id' | 'slug' | 'created_at' | 'updated_at'>>
 
 export interface GuestStats {
   total: number
@@ -108,6 +109,31 @@ export interface ProjectMember {
   joined_at: string | null
   created_at: string
 }
+
+// Venue tracker
+export type VenueStatus = 'בבדיקה' | 'נקבעה פגישה' | 'אהבנו' | 'לא מתאים' | 'נבחר'
+
+export interface Venue {
+  id: string
+  wedding_id: string
+  name: string
+  location: string | null
+  phone: string | null
+  contact_name: string | null
+  website: string | null
+  capacity: number | null
+  price_per_person: number | null
+  minimum_spend: number | null
+  available_dates: string | null
+  status: VenueStatus
+  rating: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type VenueInsert = Omit<Venue, 'id' | 'created_at' | 'updated_at'>
+export type VenueUpdate = Partial<Omit<Venue, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
 // Sorting
 export type GuestSortField = 'full_name' | 'group_name' | 'gift_amount' | 'rsvp_status' | 'created_at'

@@ -1,35 +1,53 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useAuth } from '@/providers/auth-provider'
 
 interface PresenceState {
   partnerOnline: boolean
   partnerEmail: string | null
+  viewerCount: number
+}
+
+function getVisitorId(): string {
+  if (typeof window === 'undefined') return ''
+  let id = sessionStorage.getItem('visitor-id')
+  if (!id) {
+    id = crypto.randomUUID()
+    sessionStorage.setItem('visitor-id', id)
+  }
+  return id
 }
 
 export function usePresence(weddingId: string | undefined): PresenceState {
-  const { user } = useAuth()
   const [partnerOnline, setPartnerOnline] = useState(false)
   const [partnerEmail, setPartnerEmail] = useState<string | null>(null)
+  const [viewerCount, setViewerCount] = useState(0)
+  const visitorIdRef = useRef<string>('')
 
   useEffect(() => {
-    if (!weddingId || !user) return
+    visitorIdRef.current = getVisitorId()
+  }, [])
+
+  useEffect(() => {
+    if (!weddingId || !visitorIdRef.current) return
 
     const supabase = createClient()
+    const visitorId = visitorIdRef.current
 
     const channel = supabase.channel(`presence:${weddingId}`, {
-      config: { presence: { key: user.id } },
+      config: { presence: { key: visitorId } },
     })
 
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState()
-      // Check if anyone other than current user is present
+      const keys = Object.keys(state)
+      setViewerCount(keys.length)
+
       let foundPartner = false
       let foundEmail: string | null = null
       for (const [key, presences] of Object.entries(state)) {
-        if (key !== user.id && presences.length > 0) {
+        if (key !== visitorId && presences.length > 0) {
           foundPartner = true
           const presence = presences[0] as { email?: string }
           foundEmail = presence.email ?? null
@@ -43,8 +61,7 @@ export function usePresence(weddingId: string | undefined): PresenceState {
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         await channel.track({
-          user_id: user.id,
-          email: user.email,
+          visitor_id: visitorId,
           online_at: new Date().toISOString(),
         })
       }
@@ -53,7 +70,7 @@ export function usePresence(weddingId: string | undefined): PresenceState {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [weddingId, user])
+  }, [weddingId])
 
-  return { partnerOnline, partnerEmail }
+  return { partnerOnline, partnerEmail, viewerCount }
 }

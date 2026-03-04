@@ -36,7 +36,7 @@ export function SetupForm() {
     })
 
     if (result) {
-      router.push('/')
+      router.push(`/wedding/${result.slug}`)
     } else {
       setError('שגיאה ביצירת החתונה. אנא נסו שוב.')
       setSubmitting(false)

@@ -12,6 +12,7 @@ export type Database = {
       weddings: {
         Row: {
           id: string
+          slug: string
           bride_name: string
           groom_name: string
           wedding_date: string | null
@@ -23,6 +24,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          slug?: string
           bride_name: string
           groom_name: string
           wedding_date?: string | null
@@ -34,6 +36,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          slug?: string
           bride_name?: string
           groom_name?: string
           wedding_date?: string | null
@@ -262,6 +265,71 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: 'guest_categories_wedding_id_fkey'
+            columns: ['wedding_id']
+            isOneToOne: false
+            referencedRelation: 'weddings'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      venues: {
+        Row: {
+          id: string
+          wedding_id: string
+          name: string
+          location: string | null
+          phone: string | null
+          contact_name: string | null
+          website: string | null
+          capacity: number | null
+          price_per_person: number | null
+          minimum_spend: number | null
+          available_dates: string | null
+          status: string
+          rating: number | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          wedding_id: string
+          name: string
+          location?: string | null
+          phone?: string | null
+          contact_name?: string | null
+          website?: string | null
+          capacity?: number | null
+          price_per_person?: number | null
+          minimum_spend?: number | null
+          available_dates?: string | null
+          status?: string
+          rating?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          wedding_id?: string
+          name?: string
+          location?: string | null
+          phone?: string | null
+          contact_name?: string | null
+          website?: string | null
+          capacity?: number | null
+          price_per_person?: number | null
+          minimum_spend?: number | null
+          available_dates?: string | null
+          status?: string
+          rating?: number | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'venues_wedding_id_fkey'
             columns: ['wedding_id']
             isOneToOne: false
             referencedRelation: 'weddings'

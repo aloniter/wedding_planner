@@ -12,7 +12,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import type { VenueInsert, VenueStatus } from '@/lib/types'
+import type { Venue, VenueInsert, VenueStatus } from '@/lib/types'
 
 const STATUSES: { value: VenueStatus; label: string }[] = [
   { value: 'בבדיקה', label: 'בבדיקה' },
@@ -24,10 +24,11 @@ const STATUSES: { value: VenueStatus; label: string }[] = [
 
 interface Props {
   weddingId: string
-  onAdd: (data: VenueInsert) => void
+  onAdd: (data: VenueInsert) => Promise<Venue | null>
+  onCreated?: (venue: Venue) => void
 }
 
-export function AddVenueDialog({ weddingId, onAdd }: Props) {
+export function AddVenueDialog({ weddingId, onAdd, onCreated }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [status, setStatus] = useState<VenueStatus>('בבדיקה')
@@ -48,9 +49,9 @@ export function AddVenueDialog({ weddingId, onAdd }: Props) {
     setMinimumSpend(''); setAvailableDates(''); setRating(0); setNotes('')
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onAdd({
+    const result = await onAdd({
       wedding_id: weddingId,
       name: name.trim(),
       status,
@@ -67,6 +68,7 @@ export function AddVenueDialog({ weddingId, onAdd }: Props) {
     })
     reset()
     setOpen(false)
+    if (result) onCreated?.(result)
   }
 
   return (
@@ -152,6 +154,9 @@ export function AddVenueDialog({ weddingId, onAdd }: Props) {
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="הרשמות שלנו מהביקור..." rows={3} />
             </div>
           </div>
+          <p className="col-span-2 text-xs text-muted-foreground">
+            ניתן לצרף קבצים (תמונות / PDF) לאחר שמירת האולם
+          </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>ביטול</Button>
             <Button type="submit">הוסף אולם</Button>

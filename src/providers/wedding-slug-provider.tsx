@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
+import { saveSlug } from '@/lib/wedding-storage'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
 
 interface WeddingSlugContextValue {
@@ -48,6 +49,7 @@ export function WeddingSlugProvider({ slug, children }: { slug: string; children
           setError('לא נמצאה חתונה עם הקישור הזה')
           setLoading(false)
         } else {
+          saveSlug(data.slug)
           setWedding(data as Wedding)
           setLoading(false)
         }

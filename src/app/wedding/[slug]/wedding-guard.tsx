@@ -1,11 +1,13 @@
 'use client'
 
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
+import { clearSlug } from '@/lib/wedding-storage'
 
 export function WeddingGuard({ children }: { children: React.ReactNode }) {
   const { error, loading } = useWeddingSlugContext()
 
   if (!loading && error) {
+    clearSlug()
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center gap-4">
         <p className="text-lg text-muted-foreground">{error}</p>

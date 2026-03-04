@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
+import { saveSlug } from '@/lib/wedding-storage'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
 import { DEFAULT_GUEST_CATEGORIES } from '@/lib/constants'
 
@@ -76,6 +77,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     await supabase.from('guest_categories').insert(defaultCats)
 
     const result = newWedding as Wedding
+    saveSlug(result.slug)
     setWedding(result)
     return result
   }, [])

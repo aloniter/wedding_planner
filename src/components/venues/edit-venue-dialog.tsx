@@ -27,10 +27,12 @@ interface Props {
   venue: Venue
   weddingId: string
   onUpdate: (id: string, updates: VenueUpdate) => void
+  initialOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function EditVenueDialog({ venue, weddingId, onUpdate }: Props) {
-  const [open, setOpen] = useState(false)
+export function EditVenueDialog({ venue, weddingId, onUpdate, initialOpen = false, onOpenChange: onOpenChangeProp }: Props) {
+  const [open, setOpen] = useState(initialOpen)
   const [name, setName] = useState(venue.name)
   const [status, setStatus] = useState<VenueStatus>(venue.status)
   const [location, setLocation] = useState(venue.location ?? '')
@@ -77,7 +79,7 @@ export function EditVenueDialog({ venue, weddingId, onUpdate }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); onOpenChangeProp?.(v) }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
           <Pencil className="h-3.5 w-3.5" />

@@ -1,15 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import { Building2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { VenueCard } from '@/components/venues/venue-card'
 import { AddVenueDialog } from '@/components/venues/add-venue-dialog'
+import { EditVenueDialog } from '@/components/venues/edit-venue-dialog'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
 import { useVenueTracker } from '@/hooks/use-venue-tracker'
+import type { Venue } from '@/lib/types'
 
 export default function VenuesPage() {
   const { wedding } = useWeddingSlugContext()
   const { venues, loading, stats, addVenue, updateVenue, deleteVenue } = useVenueTracker(wedding?.id)
+  const [newVenue, setNewVenue] = useState<Venue | null>(null)
 
   if (loading) {
     return (
@@ -24,7 +28,7 @@ export default function VenuesPage() {
       <PageHeader
         title="השוואת אולמות"
         subtitle="עקבו אחרי האולמות שאתם בוחנים, תאריכים פנויים ומחירים"
-        action={wedding ? <AddVenueDialog weddingId={wedding.id} onAdd={addVenue} /> : undefined}
+        action={wedding ? <AddVenueDialog weddingId={wedding.id} onAdd={addVenue} onCreated={(v) => setNewVenue(v)} /> : undefined}
       />
 
       {venues.length > 0 && (
@@ -56,7 +60,7 @@ export default function VenuesPage() {
             <p className="text-lg font-medium">עדיין אין אולמות</p>
             <p className="text-sm mt-1">הוסיפו את האולם הראשון שאתם בוחנים</p>
           </div>
-          {wedding && <AddVenueDialog weddingId={wedding.id} onAdd={addVenue} />}
+          {wedding && <AddVenueDialog weddingId={wedding.id} onAdd={addVenue} onCreated={(v) => setNewVenue(v)} />}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -75,6 +79,15 @@ export default function VenuesPage() {
               />
             ))}
         </div>
+      )}
+      {newVenue && wedding && (
+        <EditVenueDialog
+          venue={newVenue}
+          weddingId={wedding.id}
+          onUpdate={updateVenue}
+          initialOpen
+          onOpenChange={(open) => { if (!open) setNewVenue(null) }}
+        />
       )}
     </div>
   )

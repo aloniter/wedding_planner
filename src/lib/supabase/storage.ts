@@ -19,7 +19,8 @@ export async function uploadVenueAttachment(
 
   const supabase = createClient()
   const uuid = crypto.randomUUID()
-  const filePath = `${weddingId}/${venueId}/${uuid}-${file.name}`
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+  const filePath = `${weddingId}/${venueId}/${uuid}.${ext}`
 
   const { error: uploadError } = await supabase.storage
     .from(BUCKET)

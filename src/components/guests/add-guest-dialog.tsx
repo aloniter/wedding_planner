@@ -127,12 +127,12 @@ export function AddGuestDialog({ weddingId, categories, onAdd }: AddGuestDialogP
 
           <div className="space-y-2">
             <Label>קטגוריה</Label>
-            <Select value={groupName} onValueChange={setGroupName}>
+            <Select value={groupName || '__none__'} onValueChange={(v) => setGroupName(v === '__none__' ? '' : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="בחר קטגוריה" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">ללא</SelectItem>
+                <SelectItem value="__none__">ללא</SelectItem>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                 ))}

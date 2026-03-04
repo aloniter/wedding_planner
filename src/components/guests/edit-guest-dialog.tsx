@@ -115,12 +115,12 @@ export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete,
 
           <div className="space-y-2">
             <Label>קטגוריה</Label>
-            <Select value={groupName} onValueChange={setGroupName}>
+            <Select value={groupName || '__none__'} onValueChange={(v) => setGroupName(v === '__none__' ? '' : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="בחר קטגוריה" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">ללא</SelectItem>
+                <SelectItem value="__none__">ללא</SelectItem>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                 ))}
@@ -179,12 +179,12 @@ export function EditGuestDialog({ guest, open, onOpenChange, onUpdate, onDelete,
             {tables.length > 0 && (
               <div className="space-y-2">
                 <Label>שולחן</Label>
-                <Select value={tableId} onValueChange={setTableId}>
+                <Select value={tableId || '__none__'} onValueChange={(v) => setTableId(v === '__none__' ? '' : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="בחר שולחן" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">ללא</SelectItem>
+                    <SelectItem value="__none__">ללא</SelectItem>
                     {tables.map(t => (
                       <SelectItem key={t.id} value={t.id}>
                         שולחן {t.table_number}{t.label ? ` - ${t.label}` : ''}

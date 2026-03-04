@@ -69,6 +69,7 @@ export default function VenuesPage() {
               <VenueCard
                 key={venue.id}
                 venue={venue}
+                weddingId={wedding!.id}
                 onUpdate={updateVenue}
                 onDelete={deleteVenue}
               />

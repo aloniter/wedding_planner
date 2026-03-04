@@ -12,6 +12,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { VenueAttachments } from './venue-attachments'
 import type { Venue, VenueUpdate, VenueStatus } from '@/lib/types'
 
 const STATUSES: { value: VenueStatus; label: string }[] = [
@@ -24,10 +25,11 @@ const STATUSES: { value: VenueStatus; label: string }[] = [
 
 interface Props {
   venue: Venue
+  weddingId: string
   onUpdate: (id: string, updates: VenueUpdate) => void
 }
 
-export function EditVenueDialog({ venue, onUpdate }: Props) {
+export function EditVenueDialog({ venue, weddingId, onUpdate }: Props) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState(venue.name)
   const [status, setStatus] = useState<VenueStatus>(venue.status)
@@ -157,6 +159,10 @@ export function EditVenueDialog({ venue, onUpdate }: Props) {
             <div className="col-span-2 space-y-1">
               <Label>הערות</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} />
+            </div>
+            <div className="col-span-2 space-y-1">
+              <Label>קבצים מצורפים</Label>
+              <VenueAttachments venueId={venue.id} weddingId={weddingId} />
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

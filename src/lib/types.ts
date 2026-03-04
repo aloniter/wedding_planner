@@ -135,6 +135,16 @@ export interface Venue {
 export type VenueInsert = Omit<Venue, 'id' | 'created_at' | 'updated_at'>
 export type VenueUpdate = Partial<Omit<Venue, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
+export interface VenueAttachment {
+  id: string
+  venue_id: string
+  file_name: string
+  file_path: string
+  file_type: string
+  file_size: number
+  created_at: string
+}
+
 // Sorting
 export type GuestSortField = 'full_name' | 'group_name' | 'gift_amount' | 'rsvp_status' | 'created_at'
 export type SortDirection = 'asc' | 'desc'

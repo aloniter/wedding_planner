@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, MapPin, Phone, Users, Trash2, Globe, CalendarDays, User } from 'lucide-react'
+import { Star, MapPin, Phone, Users, Trash2, Globe, CalendarDays, User, Paperclip } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { EditVenueDialog } from './edit-venue-dialog'
+import { VenueAttachmentsCompact } from './venue-attachments'
 import type { Venue, VenueUpdate, VenueStatus } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 
@@ -19,11 +20,12 @@ const STATUS_CONFIG: Record<VenueStatus, { label: string; className: string }> =
 
 interface Props {
   venue: Venue
+  weddingId: string
   onUpdate: (id: string, updates: VenueUpdate) => void
   onDelete: (id: string) => void
 }
 
-export function VenueCard({ venue, onUpdate, onDelete }: Props) {
+export function VenueCard({ venue, weddingId, onUpdate, onDelete }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const statusCfg = STATUS_CONFIG[venue.status]
   const isChosen = venue.status === 'נבחר'
@@ -123,6 +125,15 @@ export function VenueCard({ venue, onUpdate, onDelete }: Props) {
           </div>
         )}
 
+        {/* Attachments */}
+        <div className="border-t pt-2">
+          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1.5">
+            <Paperclip className="h-3 w-3" />
+            קבצים מצורפים
+          </p>
+          <VenueAttachmentsCompact venueId={venue.id} weddingId={weddingId} />
+        </div>
+
         {/* Notes */}
         {venue.notes && (
           <p className="text-sm text-muted-foreground line-clamp-2 border-t pt-2">{venue.notes}</p>
@@ -138,7 +149,7 @@ export function VenueCard({ venue, onUpdate, onDelete }: Props) {
             </>
           ) : (
             <>
-              <EditVenueDialog venue={venue} onUpdate={onUpdate} />
+              <EditVenueDialog venue={venue} weddingId={weddingId} onUpdate={onUpdate} />
               <Button
                 variant="ghost"
                 size="icon"

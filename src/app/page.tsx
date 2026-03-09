@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { getSavedSlug, saveSlug } from '@/lib/wedding-storage'
+import { saveSlug, clearSlug } from '@/lib/wedding-storage'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 
 export default function HomePage() {
@@ -12,31 +12,40 @@ export default function HomePage() {
 
   useEffect(() => {
     async function resolve() {
-      // 1. Check localStorage
-      const saved = getSavedSlug()
-      if (saved) {
-        router.replace(`/wedding/${saved}`)
+      if (!getSupabaseConfig()) {
+        router.replace('/login')
         return
       }
 
-      // 2. Query Supabase for most recent wedding
-      if (getSupabaseConfig()) {
-        const supabase = createClient()
-        const { data } = await supabase
-          .from('weddings')
-          .select('slug')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+      const supabase = createClient()
 
-        if (data?.slug) {
-          saveSlug(data.slug)
-          router.replace(`/wedding/${data.slug}`)
+      // Must be authenticated
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        clearSlug()
+        router.replace('/login')
+        return
+      }
+
+      // Query user's weddings via project_members
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('wedding_id, weddings(slug)')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (memberships && memberships.length > 0) {
+        const wedding = memberships[0].weddings as unknown as { slug: string }
+        if (wedding?.slug) {
+          saveSlug(wedding.slug)
+          router.replace(`/wedding/${wedding.slug}`)
           return
         }
       }
 
-      // 3. Nothing found → setup
+      // No weddings — go to setup
+      clearSlug()
       router.replace('/setup')
     }
 

@@ -69,6 +69,17 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       return null
     }
 
+    // Add creator as owner in project_members
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      await supabase.from('project_members').insert({
+        wedding_id: weddingId,
+        user_id: session.user.id,
+        role: 'owner',
+        joined_at: new Date().toISOString(),
+      })
+    }
+
     // Seed default categories
     const defaultCats = DEFAULT_GUEST_CATEGORIES.map(name => ({
       wedding_id: weddingId,

@@ -22,13 +22,34 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
+async function claimPendingInvites(user: User) {
+  if (!user.email) return
+  const supabase = createClient()
+
+  // Find pending invites matching this user's email
+  const { data: pendingInvites } = await supabase
+    .from('project_members')
+    .select('id')
+    .eq('invited_email', user.email)
+    .is('user_id', null)
+
+  if (!pendingInvites?.length) return
+
+  // Claim each invite by setting user_id and joined_at
+  for (const invite of pendingInvites) {
+    await supabase
+      .from('project_members')
+      .update({ user_id: user.id, joined_at: new Date().toISOString() })
+      .eq('id', invite.id)
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Skip if Supabase is not configured (e.g., during build)
     if (!getSupabaseConfig()) {
       setLoading(false)
       return
@@ -40,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (session?.user) {
+        claimPendingInvites(session.user)
+      }
       setLoading(false)
     })
 
@@ -48,6 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
+        if (session?.user) {
+          claimPendingInvites(session.user)
+        }
         setLoading(false)
       }
     )

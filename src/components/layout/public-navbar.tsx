@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, Wallet, BookUser, LayoutGrid, Building2, Link2 } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { LayoutDashboard, Users, Wallet, LayoutGrid, Building2, Link2, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
+import { useAuth } from '@/providers/auth-provider'
 import { usePresence } from '@/hooks/use-presence'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
+import { clearSlug } from '@/lib/wedding-storage'
 
 function getNavItems(slug: string) {
   return [
@@ -15,14 +17,15 @@ function getNavItems(slug: string) {
     { href: `/wedding/${slug}/guests`, label: 'אורחים', icon: Users },
     { href: `/wedding/${slug}/tables`, label: 'שולחנות', icon: LayoutGrid },
     { href: `/wedding/${slug}/budget`, label: 'תקציב', icon: Wallet },
-    // { href: `/wedding/${slug}/contacts`, label: 'אנשי קשר', icon: BookUser },
     { href: `/wedding/${slug}/venues`, label: 'אולמות', icon: Building2 },
   ]
 }
 
 export function PublicNavbar({ slug }: { slug: string }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { wedding } = useWeddingSlugContext()
+  const { user, signOut } = useAuth()
   const { viewerCount } = usePresence(wedding?.id)
   const [copied, setCopied] = useState(false)
   const navItems = getNavItems(slug)
@@ -32,6 +35,12 @@ export function PublicNavbar({ slug }: { slug: string }) {
     await navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSignOut = async () => {
+    clearSlug()
+    await signOut()
+    router.replace('/login')
   }
 
   return (
@@ -80,6 +89,17 @@ export function PublicNavbar({ slug }: { slug: string }) {
             <Link2 className="h-4 w-4" />
             <span className="text-xs">{copied ? 'הועתק!' : 'העתק קישור'}</span>
           </Button>
+          {user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-foreground gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="text-xs">התנתק</span>
+            </Button>
+          )}
         </div>
       </nav>
 

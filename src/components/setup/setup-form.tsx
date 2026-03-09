@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/providers/auth-provider'
 import { getSavedSlug } from '@/lib/wedding-storage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,12 +13,17 @@ import { useWedding } from '@/hooks/use-wedding'
 
 export function SetupForm() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const { createWedding } = useWedding()
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login')
+      return
+    }
     const saved = getSavedSlug()
     if (saved) router.replace(`/wedding/${saved}`)
-  }, [router])
+  }, [router, user, authLoading])
 
   const [groomName, setGroomName] = useState('')
   const [brideName, setBrideName] = useState('')
@@ -50,11 +56,21 @@ export function SetupForm() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!user) return null
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl">חתונה שלנו 💍</CardTitle>
+          <CardTitle className="text-3xl">חתונה שלנו</CardTitle>
           <CardDescription className="text-base">
             בואו נתחיל לתכנן את החתונה המושלמת
           </CardDescription>
@@ -127,7 +143,7 @@ export function SetupForm() {
                   יוצרים את החתונה...
                 </>
               ) : (
-                'יאללה, מתחילים! 🎊'
+                'יאללה, מתחילים!'
               )}
             </Button>
           </form>

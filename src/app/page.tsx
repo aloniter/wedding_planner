@@ -1,37 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { saveSlug, clearSlug } from '@/lib/wedding-storage'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
+import { useAuth } from '@/providers/auth-provider'
 
 export default function HomePage() {
   const router = useRouter()
-  const [checking, setChecking] = useState(true)
+  const { user, loading: authLoading } = useAuth()
 
   useEffect(() => {
-    async function resolve() {
-      if (!getSupabaseConfig()) {
-        router.replace('/login')
-        return
-      }
+    // Wait for auth to finish loading
+    if (authLoading) return
+
+    if (!user) {
+      clearSlug()
+      router.replace('/login')
+      return
+    }
+
+    async function resolveWedding() {
+      if (!getSupabaseConfig()) return
 
       const supabase = createClient()
-
-      // Must be authenticated
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        clearSlug()
-        router.replace('/login')
-        return
-      }
 
       // Query user's weddings via project_members
       const { data: memberships } = await supabase
         .from('project_members')
         .select('wedding_id, weddings(slug)')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(1)
 
@@ -49,10 +48,8 @@ export default function HomePage() {
       router.replace('/setup')
     }
 
-    resolve().finally(() => setChecking(false))
-  }, [router])
-
-  if (!checking) return null
+    resolveWedding()
+  }, [authLoading, user, router])
 
   return (
     <div className="flex items-center justify-center min-h-screen">

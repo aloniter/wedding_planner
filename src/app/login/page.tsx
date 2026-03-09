@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/providers/auth-provider'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
@@ -8,28 +8,27 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Loader2, Mail, KeyRound, ArrowRight } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+  const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'email' | 'otp'>('email')
   const [error, setError] = useState<string | null>(null)
-  const otpRef = useRef<HTMLInputElement>(null)
+  const [signupSuccess, setSignupSuccess] = useState(false)
 
-  // If already authenticated, redirect to home
   useEffect(() => {
     if (!authLoading && user) {
       router.replace('/')
     }
   }, [authLoading, user, router])
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || loading) return
+    if (!email.trim() || !password.trim() || loading) return
 
     setLoading(true)
     setError(null)
@@ -41,68 +40,54 @@ export default function LoginPage() {
     }
 
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
 
-    if (authError) {
-      setError('שגיאה בשליחת הקוד. אנא נסו שוב.')
+    if (mode === 'signup') {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+      })
+
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+          setError('כתובת המייל כבר רשומה. נסו להתחבר.')
+        } else {
+          setError(signUpError.message)
+        }
+        setLoading(false)
+        return
+      }
+
+      // Supabase may require email confirmation depending on settings.
+      // If auto-confirm is on, user is logged in immediately.
+      // Check if we got a session:
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        // Auto-confirmed — redirect will happen via useEffect
+        return
+      }
+
+      setSignupSuccess(true)
       setLoading(false)
       return
     }
 
-    setStep('otp')
-    setLoading(false)
-    // Focus OTP input after render
-    setTimeout(() => otpRef.current?.focus(), 100)
-  }
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!otp.trim() || loading) return
-
-    setLoading(true)
-    setError(null)
-
-    const supabase = createClient()
-    const { error: verifyError } = await supabase.auth.verifyOtp({
+    // Login
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      token: otp.trim(),
-      type: 'email',
+      password: password.trim(),
     })
 
-    if (verifyError) {
-      setError('קוד שגוי או שפג תוקפו. נסו שוב.')
+    if (signInError) {
+      if (signInError.message.includes('Invalid login')) {
+        setError('אימייל או סיסמה שגויים')
+      } else {
+        setError(signInError.message)
+      }
       setLoading(false)
       return
     }
 
-    // Session is now established — AuthProvider will detect it
-    // and the useEffect above will redirect to /
-  }
-
-  const handleResend = async () => {
-    setOtp('')
-    setError(null)
-    setLoading(true)
-
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    setLoading(false)
-    if (authError) {
-      setError('שגיאה בשליחת הקוד. אנא נסו שוב.')
-    } else {
-      setError(null)
-    }
+    // Success — AuthProvider will detect the session and useEffect redirects
   }
 
   if (authLoading) {
@@ -113,98 +98,48 @@ export default function LoginPage() {
     )
   }
 
-  // Step 2: Enter OTP code
-  if (step === 'otp') {
+  if (signupSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <KeyRound className="h-6 w-6 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">הזינו את הקוד</CardTitle>
+            <CardTitle className="text-2xl">בדקו את המייל</CardTitle>
             <CardDescription className="text-base">
-              שלחנו קוד בן 6 ספרות אל <strong dir="ltr">{email}</strong>
+              שלחנו קישור אימות אל <strong dir="ltr">{email}</strong>
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp">קוד אימות</Label>
-                <Input
-                  ref={otpRef}
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  dir="ltr"
-                  className="text-center text-2xl tracking-[0.5em] font-mono"
-                  required
-                  maxLength={6}
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-destructive text-center">{error}</p>
-              )}
-
-              <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={loading || otp.length < 6}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin ml-2" />
-                    מאמתים...
-                  </>
-                ) : (
-                  'התחברות'
-                )}
-              </Button>
-
-              <div className="flex items-center justify-between text-sm">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleResend}
-                  disabled={loading}
-                  className="text-muted-foreground"
-                >
-                  שליחה מחדש
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setStep('email'); setOtp(''); setError(null) }}
-                  className="text-muted-foreground gap-1"
-                >
-                  <ArrowRight className="h-3 w-3" />
-                  שינוי כתובת
-                </Button>
-              </div>
-            </form>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              לחצו על הקישור במייל כדי לאשר את החשבון, ואז חזרו להתחבר.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => { setSignupSuccess(false); setMode('login'); setPassword('') }}
+            >
+              חזרה להתחברות
+            </Button>
           </CardContent>
         </Card>
       </div>
     )
   }
 
-  // Step 1: Enter email
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl">חתונה שלנו</CardTitle>
           <CardDescription className="text-base">
-            התחברו עם המייל שלכם כדי לנהל את החתונה
+            {mode === 'login'
+              ? 'התחברו כדי לנהל את החתונה'
+              : 'צרו חשבון חדש כדי להתחיל'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSendOtp} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">כתובת אימייל</Label>
+              <Label htmlFor="email">אימייל</Label>
               <Input
                 id="email"
                 type="email"
@@ -217,24 +152,58 @@ export default function LoginPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="password">סיסמה</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'signup' ? 'לפחות 6 תווים' : '••••••'}
+                dir="ltr"
+                required
+                minLength={6}
+              />
+            </div>
+
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>
             )}
 
             <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={loading}>
               {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin ml-2" />
-                  שולחים קוד...
-                </>
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <>
-                  <Mail className="h-5 w-5 ml-2" />
-                  שליחת קוד התחברות
-                </>
+                mode === 'login' ? 'התחברות' : 'הרשמה'
               )}
             </Button>
           </form>
+
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            {mode === 'login' ? (
+              <p>
+                אין לכם חשבון?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setMode('signup'); setError(null) }}
+                  className="text-primary underline font-medium"
+                >
+                  הרשמה
+                </button>
+              </p>
+            ) : (
+              <p>
+                כבר יש לכם חשבון?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); setError(null) }}
+                  className="text-primary underline font-medium"
+                >
+                  התחברות
+                </button>
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -10,6 +10,7 @@ import { VendorsDue } from '@/components/dashboard/vendors-due'
 import { WeddingDetailsEditor } from '@/components/dashboard/wedding-details-editor'
 import { GiftSummary } from '@/components/dashboard/gift-summary'
 import { ShareLinkButton } from '@/components/dashboard/share-link-button'
+import { PartnerInvite } from '@/components/dashboard/partner-invite'
 
 export default function DashboardPage() {
   const { wedding, loading: weddingLoading, updateWedding } = useWeddingSlugContext()
@@ -50,6 +51,9 @@ export default function DashboardPage() {
 
       {/* Vendors Due */}
       <VendorsDue vendors={vendors} />
+
+      {/* Partner Invite */}
+      <PartnerInvite weddingId={wedding.id} />
     </div>
   )
 }

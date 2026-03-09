@@ -65,24 +65,37 @@ CREATE POLICY "wedding_delete" ON weddings
 
 -- =====================
 -- 5. Project members policies
+-- NOTE: use project_members.wedding_id to reference the current row
+--       inside subqueries that also select from project_members
 -- =====================
 CREATE POLICY "members_select" ON project_members
   FOR SELECT TO authenticated
   USING (
     user_id = auth.uid()
-    OR is_wedding_member(wedding_id)
+    OR invited_email = auth.email()
+    OR EXISTS (
+      SELECT 1 FROM project_members pm
+      WHERE pm.wedding_id = project_members.wedding_id
+        AND pm.user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "members_insert" ON project_members
   FOR INSERT TO authenticated
   WITH CHECK (
+    -- Creating own membership (for new wedding setup)
     user_id = auth.uid()
     OR
-    EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = wedding_id
-        AND pm.user_id = auth.uid()
-        AND pm.role = 'owner'
+    -- Owner inviting someone (user_id is null, invited_email is set)
+    (
+      user_id IS NULL
+      AND invited_email IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM project_members pm
+        WHERE pm.wedding_id = project_members.wedding_id
+          AND pm.user_id = auth.uid()
+          AND pm.role = 'owner'
+      )
     )
   );
 
@@ -93,7 +106,7 @@ CREATE POLICY "members_update" ON project_members
     OR invited_email = auth.email()
     OR EXISTS (
       SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = wedding_id
+      WHERE pm.wedding_id = project_members.wedding_id
         AND pm.user_id = auth.uid()
         AND pm.role = 'owner'
     )
@@ -105,7 +118,7 @@ CREATE POLICY "members_delete" ON project_members
     user_id = auth.uid()
     OR EXISTS (
       SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = wedding_id
+      WHERE pm.wedding_id = project_members.wedding_id
         AND pm.user_id = auth.uid()
         AND pm.role = 'owner'
     )

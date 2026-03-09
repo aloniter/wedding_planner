@@ -7,7 +7,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, UserPlus, Check, X, Users } from 'lucide-react'
-import type { ProjectMember } from '@/lib/types'
+
+interface MemberWithEmail {
+  id: string
+  wedding_id: string
+  user_id: string | null
+  role: string
+  invited_email: string | null
+  email: string | null
+  joined_at: string | null
+}
 
 interface PartnerInviteProps {
   weddingId: string
@@ -15,35 +24,29 @@ interface PartnerInviteProps {
 
 export function PartnerInvite({ weddingId }: PartnerInviteProps) {
   const { user } = useAuth()
-  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [members, setMembers] = useState<MemberWithEmail[]>([])
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMembers, setLoadingMembers] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Load current members
-  useEffect(() => {
+  async function loadMembers() {
     if (!weddingId || !getSupabaseConfig()) return
     const supabase = createClient()
+    const { data } = await supabase.rpc('get_wedding_members', { p_wedding_id: weddingId })
+    if (data) setMembers(data as MemberWithEmail[])
+    setLoadingMembers(false)
+  }
 
-    async function loadMembers() {
-      const { data } = await supabase
-        .from('project_members')
-        .select('*')
-        .eq('wedding_id', weddingId)
-
-      if (data) setMembers(data as ProjectMember[])
-      setLoadingMembers(false)
-    }
-
+  useEffect(() => {
     loadMembers()
   }, [weddingId])
 
   const currentUserRole = members.find(m => m.user_id === user?.id)?.role
   const isOwner = currentUserRole === 'owner'
   const hasPartner = members.some(m => m.role === 'partner' && m.user_id)
-  const hasPendingInvite = members.some(m => m.role === 'partner' && !m.user_id && m.invited_email)
+  const hasPendingInvite = members.some(m => m.role === 'partner' && !m.user_id)
   const pendingEmail = members.find(m => m.role === 'partner' && !m.user_id)?.invited_email
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -62,37 +65,16 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
       return
     }
 
-    // Check if already a member
-    if (members.some(m => m.invited_email === trimmedEmail || (m.user_id && m.user_id === user?.id))) {
+    if (members.some(m => m.email === trimmedEmail || m.invited_email === trimmedEmail)) {
       setError('כתובת המייל הזו כבר משויכת לחתונה')
       setLoading(false)
       return
     }
 
     const supabase = createClient()
-
-    // Check if user exists in auth — if so, link them directly
-    // Otherwise, create a pending invite
-    const { data: existingMembers } = await supabase
-      .from('project_members')
-      .select('id')
-      .eq('wedding_id', weddingId)
-      .eq('invited_email', trimmedEmail)
-
-    if (existingMembers && existingMembers.length > 0) {
-      setError('כבר נשלחה הזמנה לכתובת הזו')
-      setLoading(false)
-      return
-    }
-
     const { error: insertError } = await supabase
       .from('project_members')
-      .insert({
-        wedding_id: weddingId,
-        user_id: null,
-        role: 'partner',
-        invited_email: trimmedEmail,
-      })
+      .insert({ wedding_id: weddingId, user_id: null, role: 'partner', invited_email: trimmedEmail })
 
     if (insertError) {
       setError('שגיאה בשליחת ההזמנה')
@@ -100,15 +82,8 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
       return
     }
 
-    // Refresh members
-    const { data: updated } = await supabase
-      .from('project_members')
-      .select('*')
-      .eq('wedding_id', weddingId)
-
-    if (updated) setMembers(updated as ProjectMember[])
-
-    setSuccess(`הזמנה נשלחה! בקשו מ-${trimmedEmail} להירשם ולהתחבר`)
+    await loadMembers()
+    setSuccess(`הזמנה נשמרה! בקשו מ-${trimmedEmail} להירשם באפליקציה`)
     setEmail('')
     setLoading(false)
   }
@@ -117,7 +92,6 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
     if (!isOwner) return
     const supabase = createClient()
     await supabase.from('project_members').delete().eq('id', memberId)
-
     setMembers(prev => prev.filter(m => m.id !== memberId))
     setSuccess(null)
   }
@@ -133,18 +107,19 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Current members list */}
         <div className="space-y-2">
           {members.map((member) => (
             <div key={member.id} className="flex items-center justify-between text-sm py-1.5 px-3 rounded-lg bg-muted/50">
               <div className="flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
-                  {member.invited_email?.[0]?.toUpperCase() || '?'}
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                  {(member.email ?? member.invited_email ?? '?')[0].toUpperCase()}
                 </div>
-                <div>
-                  <span dir="ltr">{member.invited_email || member.user_id?.slice(0, 8)}</span>
+                <div className="flex flex-col">
+                  <span dir="ltr" className="font-medium">
+                    {member.email ?? member.invited_email ?? '—'}
+                  </span>
                   {member.user_id === user?.id && (
-                    <span className="text-muted-foreground mr-1">(את/ה)</span>
+                    <span className="text-xs text-muted-foreground">את/ה</span>
                   )}
                 </div>
               </div>
@@ -155,7 +130,7 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
                 {member.user_id ? (
                   <Check className="h-3.5 w-3.5 text-green-500" />
                 ) : (
-                  <span className="text-xs text-amber-500">ממתין</span>
+                  <span className="text-xs text-amber-500">ממתין להרשמה</span>
                 )}
                 {isOwner && !member.user_id && member.role === 'partner' && (
                   <button
@@ -170,9 +145,8 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
           ))}
         </div>
 
-        {/* Invite form — only for owner, and only if no partner yet */}
         {isOwner && !hasPartner && !hasPendingInvite && (
-          <form onSubmit={handleInvite} className="flex gap-2 pt-2">
+          <form onSubmit={handleInvite} className="flex gap-2 pt-1">
             <Input
               type="email"
               value={email}
@@ -183,18 +157,14 @@ export function PartnerInvite({ weddingId }: PartnerInviteProps) {
               className="flex-1"
             />
             <Button type="submit" size="sm" disabled={loading}>
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
             </Button>
           </form>
         )}
 
-        {hasPendingInvite && (
+        {hasPendingInvite && isOwner && (
           <p className="text-xs text-amber-600 text-center">
-            ממתינים ל-<span dir="ltr">{pendingEmail}</span> להירשם ולהתחבר
+            ממתינים ל-<span dir="ltr" className="font-medium">{pendingEmail}</span> — בקשו ממנה/ו להירשם לאפליקציה
           </p>
         )}
 

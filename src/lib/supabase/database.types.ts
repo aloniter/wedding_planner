@@ -385,7 +385,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_wedding_members: {
+        Args: { p_wedding_id: string }
+        Returns: {
+          email: string
+          id: string
+          invited_email: string
+          joined_at: string
+          role: string
+          user_id: string
+          wedding_id: string
+        }[]
+      }
       is_wedding_member: { Args: { p_wedding_id: string }; Returns: boolean }
+      is_wedding_owner: { Args: { p_wedding_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

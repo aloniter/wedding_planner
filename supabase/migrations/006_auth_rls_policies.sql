@@ -64,20 +64,31 @@ CREATE POLICY "wedding_delete" ON weddings
   );
 
 -- =====================
--- 5. Project members policies
--- NOTE: use project_members.wedding_id to reference the current row
---       inside subqueries that also select from project_members
+-- 5. Helper: check if current user is owner (SECURITY DEFINER bypasses RLS)
+-- =====================
+CREATE OR REPLACE FUNCTION is_wedding_owner(p_wedding_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM project_members
+    WHERE wedding_id = p_wedding_id
+      AND user_id = auth.uid()
+      AND role = 'owner'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+-- =====================
+-- 6. Project members policies
+-- NOTE: use is_wedding_member() (SECURITY DEFINER) instead of subqueries
+--       to avoid infinite recursion (policy on project_members querying itself)
 -- =====================
 CREATE POLICY "members_select" ON project_members
   FOR SELECT TO authenticated
   USING (
     user_id = auth.uid()
     OR invited_email = auth.email()
-    OR EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = project_members.wedding_id
-        AND pm.user_id = auth.uid()
-    )
+    OR is_wedding_member(wedding_id)
   );
 
 CREATE POLICY "members_insert" ON project_members
@@ -90,12 +101,7 @@ CREATE POLICY "members_insert" ON project_members
     (
       user_id IS NULL
       AND invited_email IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM project_members pm
-        WHERE pm.wedding_id = project_members.wedding_id
-          AND pm.user_id = auth.uid()
-          AND pm.role = 'owner'
-      )
+      AND is_wedding_owner(wedding_id)
     )
   );
 
@@ -104,24 +110,14 @@ CREATE POLICY "members_update" ON project_members
   USING (
     user_id = auth.uid()
     OR invited_email = auth.email()
-    OR EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = project_members.wedding_id
-        AND pm.user_id = auth.uid()
-        AND pm.role = 'owner'
-    )
+    OR is_wedding_member(wedding_id)
   );
 
 CREATE POLICY "members_delete" ON project_members
   FOR DELETE TO authenticated
   USING (
     user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM project_members pm
-      WHERE pm.wedding_id = project_members.wedding_id
-        AND pm.user_id = auth.uid()
-        AND pm.role = 'owner'
-    )
+    OR is_wedding_member(wedding_id)
   );
 
 -- =====================

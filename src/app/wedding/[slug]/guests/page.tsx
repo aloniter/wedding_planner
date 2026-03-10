@@ -13,6 +13,7 @@ import { GuestPagination } from '@/components/guests/guest-pagination'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
 import { useGuests } from '@/hooks/use-guests'
 import { useCategories } from '@/hooks/use-categories'
+import { useTables } from '@/hooks/use-tables'
 
 export default function GuestsPage() {
   const { wedding, loading: weddingLoading } = useWeddingSlugContext()
@@ -41,6 +42,7 @@ export default function GuestsPage() {
   } = useGuests(wedding?.id)
 
   const { categories, addCategory, renameCategory, deleteCategory } = useCategories(wedding?.id)
+  const { tables } = useTables(wedding?.id)
 
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(50)
@@ -84,9 +86,7 @@ export default function GuestsPage() {
               onDelete={deleteGuest}
               onUpdate={updateGuest}
             />
-            {allGuests.length > 0 && (
-              <ExportDropdown guests={allGuests} wedding={wedding} stats={stats} />
-            )}
+            <ExportDropdown guests={allGuests} wedding={wedding} stats={stats} tables={tables} />
           </div>
         }
       />

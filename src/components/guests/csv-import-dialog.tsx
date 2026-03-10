@@ -10,7 +10,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Upload, Download, FileSpreadsheet } from 'lucide-react'
-import { parseGuestImportFile, downloadCsvTemplate } from '@/lib/csv'
+import { parseGuestImportFile } from '@/lib/csv'
+import { downloadGuestTemplate } from '@/lib/guest-template'
 import type { GuestInsert } from '@/lib/types'
 
 interface CsvImportDialogProps {
@@ -103,11 +104,11 @@ export function CsvImportDialog({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={downloadCsvTemplate}
+                onClick={downloadGuestTemplate}
                 className="text-xs"
               >
                 <Download className="h-3 w-3 ml-1" />
-                הורד טמפלייט CSV לדוגמה
+                הורד טמפלייט Excel לדוגמה
               </Button>
               {error && <p className="text-sm text-red-600">{error}</p>}
               {loading && <p className="text-sm text-muted-foreground">מעבד את הקובץ...</p>}

@@ -1,6 +1,7 @@
 import Papa from 'papaparse'
 import { read, utils } from 'xlsx'
-import type { Guest, GuestInsert, GuestSide, RsvpStatus } from './types'
+import type { Guest, GuestInsert, GuestSide, RsvpStatus, WeddingTable } from './types'
+import { splitFullName } from './export'
 
 type ImportField =
   | 'full_name'
@@ -27,7 +28,7 @@ const FIELD_ALIASES: Record<ImportField, string[]> = {
   last_name: ['שםמשפחה', 'lastname', 'last_name', 'last'],
   phone: ['טלפון', 'נייד', 'פלאפון', 'phone', 'telephone', 'mobile'],
   side: ['צד', 'side'],
-  group_name: ['קבוצה', 'group', 'groupname', 'קשר', 'relationship'],
+  group_name: ['קבוצה', 'group', 'groupname', 'קשר', 'relationship', 'קטגוריה', 'category'],
   adults_count: ['מוזמנים', 'מסמוזמנים', 'כמותמוזמנים', 'מבוגרים', 'adults', 'guestcount'],
   kids_count: ['ילדים', 'כמותילדים', 'kids', 'children'],
   rsvp_status: ['סטטוסrsvp', 'rsvp', 'סטטוס', 'status'],
@@ -300,6 +301,32 @@ function validateRsvpStatus(value: unknown): RsvpStatus {
   return 'ממתין'
 }
 
+export function normalizeGroupName(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return trimmed
+
+  const lower = trimmed.toLowerCase().replace(/\s+/g, ' ')
+
+  // Groom family variants
+  if (/משפחת?\s*חתן|משפחה\s*של\s*ה?חתן/i.test(lower) || lower === 'groom family') {
+    return 'משפחה חתן'
+  }
+  // Bride family variants
+  if (/משפחת?\s*כלה|משפחה\s*של\s*ה?כלה/i.test(lower) || lower === 'bride family') {
+    return 'משפחה כלה'
+  }
+  // Groom friends variants
+  if (/חברים\s*של\s*ה?חתן|חברי\s*חתן/i.test(lower) || lower === 'friends groom' || lower === 'groom friends') {
+    return 'חברים חתן'
+  }
+  // Bride friends variants
+  if (/חברים\s*של\s*ה?כלה|חברי\s*כלה/i.test(lower) || lower === 'friends bride' || lower === 'bride friends') {
+    return 'חברים כלה'
+  }
+
+  return trimmed
+}
+
 function mapRowsToGuests(
   rows: Record<string, unknown>[],
   headers: string[],
@@ -326,12 +353,14 @@ function mapRowsToGuests(
     const giftParsed = giftRaw ? Number(giftRaw.replace(/[^\d.-]/g, '')) : null
     const giftAmount = giftParsed != null && Number.isFinite(giftParsed) && giftParsed > 0 ? giftParsed : null
 
+    const rawGroupName = toOptionalText(row[mapping.group_name ?? ''])
+
     results.push({
       wedding_id: weddingId,
       full_name: guestName,
       phone: toOptionalText(row[mapping.phone ?? '']),
       side: validateSide(row[mapping.side ?? ''], options),
-      group_name: toOptionalText(row[mapping.group_name ?? '']),
+      group_name: rawGroupName ? normalizeGroupName(rawGroupName) : null,
       adults_count: parseCount(adultsRaw || attendingRaw, 1),
       kids_count: parseCount(row[mapping.kids_count ?? ''], 0),
       rsvp_status: validateRsvpStatus(row[mapping.rsvp_status ?? '']),
@@ -391,41 +420,46 @@ export async function parseGuestImportFile(
   throw new Error('UNSUPPORTED_FILE_TYPE')
 }
 
-export function exportGuestsToCsv(guests: Guest[]): void {
-  const exportData = guests.map(g => ({
-    'שם': g.full_name,
-    'טלפון': g.phone || '',
-    'צד': g.side,
-    'קבוצה': g.group_name || '',
-    'מבוגרים': g.adults_count,
-    'ילדים': g.kids_count,
-    'סטטוס RSVP': g.rsvp_status,
-    'מתנה': g.gift_amount ?? '',
-    'הערות': g.notes || '',
-  }))
+export function exportGuestsToCsv(
+  guests: Guest[],
+  tables: WeddingTable[] = []
+): void {
+  const tableMap = new Map(tables.map(t => [t.id, t.label || `שולחן ${t.table_number}`]))
+
+  const exportData = guests.map((g, i) => {
+    const [firstName, lastName] = splitFullName(g.full_name)
+    return {
+      "מס'": i + 1,
+      'שם פרטי': firstName,
+      'שם משפחה': lastName,
+      'צד': g.side,
+      'קשר': g.group_name || '',
+      'כתובת מייל': '',
+      'טלפון': g.phone || '',
+      '# מוזמנים': g.adults_count,
+      '# מגיעים': g.rsvp_status === 'אישר' ? g.adults_count : '',
+      'סטטוס RSVP': g.rsvp_status,
+      'שמר תאריך': '',
+      'הזמנה נשלחה': '',
+      'בחירת מנה': '',
+      'הגבלות תזונה': '',
+      'שולחן': g.table_id ? (tableMap.get(g.table_id) || '') : '',
+      'מתנה': g.gift_amount ?? '',
+      'תודה נשלחה': '',
+      'הערות': g.notes || '',
+      'ילדים': g.kids_count,
+    }
+  })
 
   const csv = Papa.unparse(exportData, { header: true })
-  // BOM for Hebrew Excel support
   const bom = '\uFEFF'
   const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
 
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `guests-${new Date().toISOString().split('T')[0]}.csv`
+  link.download = `רשימת-אורחים-${new Date().toISOString().split('T')[0]}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
 
-export function downloadCsvTemplate(): void {
-  const template = 'שם,טלפון,צד\nמשפחת כהן,050-1234567,חתן\nשרה לוי,052-9876543,כלה\n'
-  const bom = '\uFEFF'
-  const blob = new Blob([bom + template], { type: 'text/csv;charset=utf-8;' })
-
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'guest-template.csv'
-  link.click()
-  URL.revokeObjectURL(url)
-}

@@ -42,3 +42,14 @@ export const DEFAULT_GUEST_CATEGORIES = [
   'צבא',
   'אחר',
 ] as const
+
+export const GUEST_GROUP_NAMES = [
+  'משפחה חתן',
+  'משפחה כלה',
+  'חברים חתן',
+  'חברים כלה',
+  'עבודה',
+  'צבא',
+  'שכנים',
+  'אחר',
+] as const

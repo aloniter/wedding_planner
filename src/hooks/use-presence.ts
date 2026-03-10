@@ -13,7 +13,7 @@ function getVisitorId(): string {
   if (typeof window === 'undefined') return ''
   let id = sessionStorage.getItem('visitor-id')
   if (!id) {
-    id = crypto.randomUUID()
+    id = crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)
     sessionStorage.setItem('visitor-id', id)
   }
   return id

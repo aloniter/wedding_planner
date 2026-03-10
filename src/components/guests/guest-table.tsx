@@ -65,7 +65,7 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p className="text-lg">אין אורחים עדיין</p>
-        <p className="text-sm mt-1">הוסיפו אורחים ידנית או ייבאו מ-CSV</p>
+        <p className="text-sm mt-1">הוסיפו אורחים ידנית או ייבאו מקובץ Excel</p>
       </div>
     )
   }

@@ -1,51 +1,15 @@
 import Papa from 'papaparse'
 import { read, utils } from 'xlsx'
-import type { Guest, GuestInsert, GuestSide, RsvpStatus, WeddingTable } from './types'
-import { splitFullName } from './export'
-
-type ImportField =
-  | 'full_name'
-  | 'first_name'
-  | 'last_name'
-  | 'phone'
-  | 'side'
-  | 'group_name'
-  | 'adults_count'
-  | 'kids_count'
-  | 'rsvp_status'
-  | 'gift_amount'
-  | 'notes'
-  | 'attending_count'
-
-interface GuestImportOptions {
-  groomName?: string | null
-  brideName?: string | null
-}
-
-const FIELD_ALIASES: Record<ImportField, string[]> = {
-  full_name: ['שם', 'שםמלא', 'full_name', 'fullname', 'name', 'guestname'],
-  first_name: ['שםפרטי', 'firstname', 'first_name', 'first'],
-  last_name: ['שםמשפחה', 'lastname', 'last_name', 'last'],
-  phone: ['טלפון', 'נייד', 'פלאפון', 'phone', 'telephone', 'mobile'],
-  side: ['צד', 'side'],
-  group_name: ['קבוצה', 'group', 'groupname', 'קשר', 'relationship', 'קטגוריה', 'category'],
-  adults_count: ['מוזמנים', 'מסמוזמנים', 'כמותמוזמנים', 'מבוגרים', 'adults', 'guestcount'],
-  kids_count: ['ילדים', 'כמותילדים', 'kids', 'children'],
-  rsvp_status: ['סטטוסrsvp', 'rsvp', 'סטטוס', 'status'],
-  gift_amount: ['מתנה', 'סכוםמתנה', 'gift', 'giftamount'],
-  notes: ['הערות', 'notes', 'note'],
-  attending_count: ['מגיעים', 'מסמגיעים', 'כמותמגיעים', 'attending', 'arriving'],
-}
-
-const HEADER_LOOKUP: Record<string, ImportField> = Object.entries(FIELD_ALIASES).reduce(
-  (acc, [field, aliases]) => {
-    for (const alias of aliases) {
-      acc[normalizeHeader(alias)] = field as ImportField
-    }
-    return acc
-  },
-  {} as Record<string, ImportField>
-)
+import type { Guest, GuestInsert } from './types'
+import {
+  guestToExcelRecord,
+  parseGuestImportRows,
+  resolveGuestImportField,
+  scoreGuestHeaderRow,
+  type GuestImportOptions,
+  type GuestImportParseResult,
+  type GuestImportSourceRow,
+} from './guest-excel'
 
 interface HeaderDetectionResult {
   headerRowIndex: number
@@ -56,16 +20,7 @@ interface ExcelSheetCandidate {
   score: number
   rowCount: number
   headers: string[]
-  rows: Record<string, unknown>[]
-}
-
-function normalizeHeader(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/\u00a0/g, ' ')
-    .replace(/\s+/g, '')
-    .replace(/[^a-z0-9\u0590-\u05ff]/g, '')
+  rows: GuestImportSourceRow[]
 }
 
 function toText(value: unknown): string {
@@ -73,53 +28,14 @@ function toText(value: unknown): string {
   return String(value).replace(/\u00a0/g, ' ').trim()
 }
 
-function toOptionalText(value: unknown): string | null {
-  const trimmed = toText(value)
-  return trimmed ? trimmed : null
-}
-
-function resolveField(header: string): ImportField | null {
-  if (!header) return null
-  return HEADER_LOOKUP[normalizeHeader(header)] ?? null
-}
-
-function buildHeaderMapping(headers: string[]): Partial<Record<ImportField, string>> {
-  const mapping: Partial<Record<ImportField, string>> = {}
-
-  for (const header of headers) {
-    const field = resolveField(header)
-    if (field && !mapping[field]) {
-      mapping[field] = header
-    }
-  }
-
-  return mapping
-}
-
-function scoreHeaderRow(row: unknown[]): number {
-  const found = new Set<ImportField>()
-
-  for (const cell of row) {
-    const field = resolveField(toText(cell))
-    if (field) found.add(field)
-  }
-
-  let score = found.size
-  if (found.has('full_name')) score += 2
-  if (found.has('first_name')) score += 1
-  if (found.has('phone')) score += 1
-  if (found.has('adults_count')) score += 1
-  return score
-}
-
 function detectHeaderRow(rows: unknown[][]): HeaderDetectionResult {
   let best: HeaderDetectionResult = { headerRowIndex: -1, score: 0 }
 
   const maxRowsToScan = Math.min(rows.length, 25)
-  for (let i = 0; i < maxRowsToScan; i++) {
-    const score = scoreHeaderRow(rows[i] ?? [])
+  for (let index = 0; index < maxRowsToScan; index++) {
+    const score = scoreGuestHeaderRow(rows[index] ?? [])
     if (score > best.score) {
-      best = { headerRowIndex: i, score }
+      best = { headerRowIndex: index, score }
     }
   }
 
@@ -129,7 +45,7 @@ function detectHeaderRow(rows: unknown[][]): HeaderDetectionResult {
 function extractRowsFromSheet(
   rows: unknown[][],
   headerRowIndex: number
-): { headers: string[]; dataRows: Record<string, unknown>[] } {
+): { headers: string[]; dataRows: GuestImportSourceRow[] } {
   const rawHeaderRow = rows[headerRowIndex] ?? []
   const columnDefs = rawHeaderRow
     .map((headerCell, index) => ({
@@ -139,20 +55,28 @@ function extractRowsFromSheet(
     .filter((column) => column.header.length > 0)
 
   const headers = columnDefs.map((column) => column.header)
-  const dataRows: Record<string, unknown>[] = []
+  const dataRows: GuestImportSourceRow[] = []
 
   for (let rowIndex = headerRowIndex + 1; rowIndex < rows.length; rowIndex++) {
     const sourceRow = rows[rowIndex] ?? []
-    const row: Record<string, unknown> = {}
-    let hasContent = false
+    const values: Record<string, unknown> = {}
+    let hasKnownContent = false
 
     for (const column of columnDefs) {
       const value = sourceRow[column.index]
-      row[column.header] = value
-      if (toText(value)) hasContent = true
+      values[column.header] = value
+
+      if (resolveGuestImportField(column.header) && toText(value)) {
+        hasKnownContent = true
+      }
     }
 
-    if (hasContent) dataRows.push(row)
+    if (hasKnownContent) {
+      dataRows.push({
+        rowNumber: rowIndex + 1,
+        values,
+      })
+    }
   }
 
   return { headers, dataRows }
@@ -205,179 +129,11 @@ function detectBestExcelSheet(file: File): Promise<ExcelSheetCandidate> {
   })
 }
 
-function parseCount(value: unknown, fallback: number): number {
-  const raw = toText(value)
-  if (!raw) return fallback
-
-  const numeric = Number(raw.replace(/[^\d.-]/g, ''))
-  if (!Number.isFinite(numeric) || numeric < 0) return fallback
-  return Math.round(numeric)
-}
-
-function normalizeCompare(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '')
-}
-
-function matchesAlias(value: string, aliases: string[]): boolean {
-  const normalizedValue = normalizeCompare(value)
-  if (!normalizedValue) return false
-
-  return aliases.some((alias) => {
-    const normalizedAlias = normalizeCompare(alias)
-    if (!normalizedAlias) return false
-    return (
-      normalizedValue.includes(normalizedAlias) ||
-      normalizedAlias.includes(normalizedValue)
-    )
-  })
-}
-
-function createNameAliases(name?: string | null): string[] {
-  if (!name) return []
-  const trimmed = name.trim()
-  if (!trimmed) return []
-
-  const firstWord = trimmed.split(/\s+/)[0]
-  return Array.from(new Set([trimmed, firstWord]))
-}
-
-function validateSide(
-  value: unknown,
-  options?: GuestImportOptions
-): GuestSide {
-  const side = toText(value)
-  if (!side) return 'משותף'
-
-  if (side.includes('חתן') || side.toLowerCase().includes('groom')) return 'חתן'
-  if (side.includes('כלה') || side.toLowerCase().includes('bride')) return 'כלה'
-  if (
-    side.includes('משותף') ||
-    side.includes('שניהם') ||
-    side.toLowerCase().includes('both')
-  ) {
-    return 'משותף'
-  }
-
-  const groomAliases = createNameAliases(options?.groomName)
-  const brideAliases = createNameAliases(options?.brideName)
-  const isGroomSide = matchesAlias(side, groomAliases)
-  const isBrideSide = matchesAlias(side, brideAliases)
-
-  if (isGroomSide && isBrideSide) return 'משותף'
-  if (isGroomSide) return 'חתן'
-  if (isBrideSide) return 'כלה'
-
-  return 'משותף'
-}
-
-function validateRsvpStatus(value: unknown): RsvpStatus {
-  const status = toText(value).toLowerCase()
-  if (!status) return 'ממתין'
-
-  if (status.includes('אישר') || status.includes('confirm') || status.includes('yes')) {
-    return 'אישר'
-  }
-
-  if (
-    status.includes('ביטל') ||
-    status.includes('סירב') ||
-    status.includes('declin') ||
-    status === 'לא'
-  ) {
-    return 'ביטל'
-  }
-
-  if (
-    status.includes('אולי') ||
-    status.includes('maybe') ||
-    status.includes('uncertain')
-  ) {
-    return 'אולי'
-  }
-
-  return 'ממתין'
-}
-
-export function normalizeGroupName(value: string): string {
-  const trimmed = value.trim()
-  if (!trimmed) return trimmed
-
-  const lower = trimmed.toLowerCase().replace(/\s+/g, ' ')
-
-  // Groom family variants
-  if (/משפחת?\s*חתן|משפחה\s*של\s*ה?חתן/i.test(lower) || lower === 'groom family') {
-    return 'משפחה חתן'
-  }
-  // Bride family variants
-  if (/משפחת?\s*כלה|משפחה\s*של\s*ה?כלה/i.test(lower) || lower === 'bride family') {
-    return 'משפחה כלה'
-  }
-  // Groom friends variants
-  if (/חברים\s*של\s*ה?חתן|חברי\s*חתן/i.test(lower) || lower === 'friends groom' || lower === 'groom friends') {
-    return 'חברים חתן'
-  }
-  // Bride friends variants
-  if (/חברים\s*של\s*ה?כלה|חברי\s*כלה/i.test(lower) || lower === 'friends bride' || lower === 'bride friends') {
-    return 'חברים כלה'
-  }
-
-  return trimmed
-}
-
-function mapRowsToGuests(
-  rows: Record<string, unknown>[],
-  headers: string[],
-  weddingId: string,
-  options?: GuestImportOptions
-): GuestInsert[] {
-  const mapping = buildHeaderMapping(headers)
-
-  const results: GuestInsert[] = []
-
-  for (const row of rows) {
-    const fullName = toText(row[mapping.full_name ?? ''])
-    const firstName = toText(row[mapping.first_name ?? ''])
-    const lastName = toText(row[mapping.last_name ?? ''])
-    const composedName = [firstName, lastName].filter(Boolean).join(' ').trim()
-    const guestName = fullName || composedName
-
-    if (!guestName) continue
-
-    const adultsRaw = row[mapping.adults_count ?? '']
-    const attendingRaw = row[mapping.attending_count ?? '']
-
-    const giftRaw = toText(row[mapping.gift_amount ?? ''])
-    const giftParsed = giftRaw ? Number(giftRaw.replace(/[^\d.-]/g, '')) : null
-    const giftAmount = giftParsed != null && Number.isFinite(giftParsed) && giftParsed > 0 ? giftParsed : null
-
-    const rawGroupName = toOptionalText(row[mapping.group_name ?? ''])
-
-    results.push({
-      wedding_id: weddingId,
-      full_name: guestName,
-      phone: toOptionalText(row[mapping.phone ?? '']),
-      side: validateSide(row[mapping.side ?? ''], options),
-      group_name: rawGroupName ? normalizeGroupName(rawGroupName) : null,
-      adults_count: parseCount(adultsRaw || attendingRaw, 1),
-      kids_count: parseCount(row[mapping.kids_count ?? ''], 0),
-      rsvp_status: validateRsvpStatus(row[mapping.rsvp_status ?? '']),
-      gift_amount: giftAmount,
-      table_id: null,
-      notes: toOptionalText(row[mapping.notes ?? '']),
-    })
-  }
-
-  return results
-}
-
 export function parseCsvFile(
   file: File,
   weddingId: string,
   options?: GuestImportOptions
-): Promise<GuestInsert[]> {
+): Promise<GuestImportParseResult> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
@@ -385,8 +141,15 @@ export function parseCsvFile(
       encoding: 'UTF-8',
       complete: (results) => {
         const headers = results.meta.fields ?? []
-        const rows = results.data as Record<string, unknown>[]
-        resolve(mapRowsToGuests(rows, headers, weddingId, options))
+        if (scoreGuestHeaderRow(headers) < 2) {
+          reject(new Error('NO_IMPORTABLE_HEADERS'))
+          return
+        }
+        const rows = (results.data as Record<string, unknown>[]).map((values, index) => ({
+          rowNumber: index + 2,
+          values,
+        }))
+        resolve(parseGuestImportRows(rows, headers, weddingId, options))
       },
       error: (error) => reject(error),
     })
@@ -397,16 +160,16 @@ async function parseExcelFile(
   file: File,
   weddingId: string,
   options?: GuestImportOptions
-): Promise<GuestInsert[]> {
+): Promise<GuestImportParseResult> {
   const bestSheet = await detectBestExcelSheet(file)
-  return mapRowsToGuests(bestSheet.rows, bestSheet.headers, weddingId, options)
+  return parseGuestImportRows(bestSheet.rows, bestSheet.headers, weddingId, options)
 }
 
 export async function parseGuestImportFile(
   file: File,
   weddingId: string,
   options?: GuestImportOptions
-): Promise<GuestInsert[]> {
+): Promise<GuestImportParseResult> {
   const extension = file.name.toLowerCase().split('.').pop()
 
   if (extension === 'csv') {
@@ -420,37 +183,8 @@ export async function parseGuestImportFile(
   throw new Error('UNSUPPORTED_FILE_TYPE')
 }
 
-export function exportGuestsToCsv(
-  guests: Guest[],
-  tables: WeddingTable[] = []
-): void {
-  const tableMap = new Map(tables.map(t => [t.id, t.label || `שולחן ${t.table_number}`]))
-
-  const exportData = guests.map((g, i) => {
-    const [firstName, lastName] = splitFullName(g.full_name)
-    return {
-      "מס'": i + 1,
-      'שם פרטי': firstName,
-      'שם משפחה': lastName,
-      'צד': g.side,
-      'קשר': g.group_name || '',
-      'כתובת מייל': '',
-      'טלפון': g.phone || '',
-      '# מוזמנים': g.adults_count,
-      '# מגיעים': g.rsvp_status === 'אישר' ? g.adults_count : '',
-      'סטטוס RSVP': g.rsvp_status,
-      'שמר תאריך': '',
-      'הזמנה נשלחה': '',
-      'בחירת מנה': '',
-      'הגבלות תזונה': '',
-      'שולחן': g.table_id ? (tableMap.get(g.table_id) || '') : '',
-      'מתנה': g.gift_amount ?? '',
-      'תודה נשלחה': '',
-      'הערות': g.notes || '',
-      'ילדים': g.kids_count,
-    }
-  })
-
+export function exportGuestsToCsv(guests: Guest[]): void {
+  const exportData = guests.map((guest) => guestToExcelRecord(guest))
   const csv = Papa.unparse(exportData, { header: true })
   const bom = '\uFEFF'
   const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
@@ -463,3 +197,4 @@ export function exportGuestsToCsv(
   URL.revokeObjectURL(url)
 }
 
+export type { GuestImportOptions, GuestImportParseResult, GuestImportSourceRow, GuestInsert }

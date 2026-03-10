@@ -11,7 +11,7 @@ function normalizeForDuplicateCheck(value: string): string {
 
 export function useGuests(weddingId: string | undefined) {
   const [guests, setGuests] = useState<Guest[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadedWeddingId, setLoadedWeddingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filterSide, setFilterSide] = useState<GuestSide | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<RsvpStatus | 'all'>('all')
@@ -19,14 +19,18 @@ export function useGuests(weddingId: string | undefined) {
   const [sortField, setSortField] = useState<GuestSortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const guestsRef = useRef(guests)
-  guestsRef.current = guests
+  const isRemoteEnabled = Boolean(weddingId && getSupabaseConfig())
+  const loading = isRemoteEnabled && loadedWeddingId !== weddingId
+
+  useEffect(() => {
+    guestsRef.current = guests
+  }, [guests])
 
   // Fetch guests from Supabase
   useEffect(() => {
-    if (!weddingId || !getSupabaseConfig()) {
-      setLoading(false)
-      return
-    }
+    if (!weddingId || !getSupabaseConfig()) return
+
+    const activeWeddingId = weddingId
     const supabase = createClient()
     let cancelled = false
 
@@ -34,13 +38,13 @@ export function useGuests(weddingId: string | undefined) {
       const { data, error } = await supabase
         .from('guests')
         .select('*')
-        .eq('wedding_id', weddingId!)
+        .eq('wedding_id', activeWeddingId)
         .order('created_at', { ascending: true })
 
       if (!cancelled && !error && data) {
         setGuests(data as Guest[])
       }
-      if (!cancelled) setLoading(false)
+      if (!cancelled) setLoadedWeddingId(activeWeddingId)
     }
 
     load()
@@ -97,7 +101,29 @@ export function useGuests(weddingId: string | undefined) {
   }, [])
 
   const addGuestsBulk = useCallback(async (data: GuestInsert[]) => {
+    if (data.length === 0) return []
+
     const supabase = createClient()
+    const categoryRows = Array.from(
+      new Set(
+        data
+          .map((guest) => guest.group_name?.trim() || '')
+          .filter(Boolean)
+      )
+    ).map((name) => ({
+      wedding_id: data[0].wedding_id,
+      name,
+    }))
+
+    if (categoryRows.length > 0) {
+      await supabase
+        .from('guest_categories')
+        .upsert(categoryRows, {
+          onConflict: 'wedding_id,name',
+          ignoreDuplicates: true,
+        })
+    }
+
     const rows = data.map(d => ({
       wedding_id: d.wedding_id,
       full_name: d.full_name,

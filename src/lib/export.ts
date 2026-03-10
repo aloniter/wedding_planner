@@ -1,190 +1,30 @@
-import { utils, writeFileXLSX } from 'xlsx'
-import type { Guest, Wedding, GuestStats, WeddingTable } from './types'
+import type { Guest, Wedding, GuestStats } from './types'
+import { exportGuestsToOfficialExcel } from './guest-excel'
 import { formatCurrency, formatDate } from './utils'
 
-export const TEMPLATE_HEADERS = [
-  "מס'",
-  'שם פרטי',
-  'שם משפחה',
-  'צד',
-  'קשר',
-  'כתובת מייל',
-  'טלפון',
-  '# מוזמנים',
-  '# מגיעים',
-  'סטטוס RSVP',
-  'שמר תאריך',
-  'הזמנה נשלחה',
-  'בחירת מנה',
-  'הגבלות תזונה',
-  'שולחן',
-  'מתנה',
-  'תודה נשלחה',
-  'הערות',
-] as const
-
-export function splitFullName(fullName: string): [string, string] {
-  const parts = fullName.trim().split(/\s+/)
-  const first = parts[0] || ''
-  const last = parts.slice(1).join(' ')
-  return [first, last]
-}
-
-export function buildTemplateRow(
-  rowNum: number,
-  firstName: string,
-  lastName: string,
-  side: string,
-  group: string,
-  phone: string,
-  adults: number,
-  attending: number | string,
-  rsvpStatus: string,
-  kids: number,
-  table = '',
-  gift: number | string = '',
-  notes = '',
-): unknown[] {
-  return [
-    rowNum,          // מס'
-    firstName,       // שם פרטי
-    lastName,        // שם משפחה
-    side,            // צד
-    group,           // קשר
-    '',              // כתובת מייל
-    phone,           // טלפון
-    adults,          // # מוזמנים
-    attending,       // # מגיעים
-    rsvpStatus,      // סטטוס RSVP
-    '',              // שמר תאריך
-    '',              // הזמנה נשלחה
-    '',              // בחירת מנה
-    '',              // הגבלות תזונה
-    table,           // שולחן
-    gift,            // מתנה
-    '',              // תודה נשלחה
-    notes,           // הערות
-    kids,            // ילדים (bonus)
-  ]
-}
-
-const COL_WIDTHS = [
-  { wch: 5 },   // מס'
-  { wch: 14 },  // שם פרטי
-  { wch: 14 },  // שם משפחה
-  { wch: 8 },   // צד
-  { wch: 14 },  // קשר
-  { wch: 18 },  // כתובת מייל
-  { wch: 14 },  // טלפון
-  { wch: 10 },  // # מוזמנים
-  { wch: 10 },  // # מגיעים
-  { wch: 12 },  // סטטוס RSVP
-  { wch: 10 },  // שמר תאריך
-  { wch: 12 },  // הזמנה נשלחה
-  { wch: 10 },  // בחירת מנה
-  { wch: 12 },  // הגבלות תזונה
-  { wch: 8 },   // שולחן
-  { wch: 8 },   // מתנה
-  { wch: 10 },  // תודה נשלחה
-  { wch: 18 },  // הערות
-  { wch: 8 },   // ילדים
-]
-
-export function exportGuestsToExcel(
-  guests: Guest[],
-  tables: WeddingTable[] = [],
-  stats?: GuestStats,
-): void {
-  const tableMap = new Map(tables.map(t => [t.id, t.label || `שולחן ${t.table_number}`]))
-
-  const headers = [...TEMPLATE_HEADERS, 'ילדים']
-
-  const dataRows = guests.map((g, i) => {
-    const [firstName, lastName] = splitFullName(g.full_name)
-    const attending = g.rsvp_status === 'אישר' ? g.adults_count : ''
-    const tableLabel = g.table_id ? (tableMap.get(g.table_id) || '') : ''
-
-    return buildTemplateRow(
-      i + 1,
-      firstName,
-      lastName,
-      g.side,
-      g.group_name || '',
-      g.phone || '',
-      g.adults_count,
-      attending,
-      g.rsvp_status,
-      g.kids_count,
-      tableLabel,
-      g.gift_amount ?? '',
-      g.notes || '',
-    )
-  })
-
-  const wsData = [
-    ['💍  רשימת אורחים  💍'],
-    headers,
-    ...dataRows,
-  ]
-
-  const ws = utils.aoa_to_sheet(wsData)
-
-  // Merge title row
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }]
-  ws['!cols'] = COL_WIDTHS
-  ws['!rtl'] = true
-
-  const wb = utils.book_new()
-  utils.book_append_sheet(wb, ws, 'רשימת אורחים')
-
-  // Summary sheet
-  if (stats) {
-    const avgGift = stats.giftCount > 0 ? Math.round(stats.totalGiftAmount / stats.giftCount) : 0
-
-    const summaryData = [
-      ['סיכום רשימת אורחים'],
-      [],
-      ['סה"כ מוזמנים', stats.total],
-      ['אישרו הגעה', stats.confirmed],
-      ['ביטלו', stats.declined],
-      ['ממתינים', stats.pending],
-      ['אולי', stats.maybe],
-      [],
-      ['סה"כ מבוגרים', stats.totalAdults],
-      ['סה"כ ילדים', stats.totalKids],
-      ['סה"כ אנשים', stats.totalAdults + stats.totalKids],
-      [],
-      ['סה"כ מתנות', stats.totalGiftAmount],
-      ['מתנות שהתקבלו', stats.giftCount],
-      ['ממוצע מתנה', avgGift],
-    ]
-
-    const summaryWs = utils.aoa_to_sheet(summaryData)
-    summaryWs['!cols'] = [{ wch: 18 }, { wch: 12 }]
-    summaryWs['!rtl'] = true
-    utils.book_append_sheet(wb, summaryWs, 'סיכום')
-  }
-
-  writeFileXLSX(wb, `רשימת-אורחים-${new Date().toISOString().split('T')[0]}.xlsx`)
+export function exportGuestsToExcel(guests: Guest[]): Promise<void> {
+  return exportGuestsToOfficialExcel(guests)
 }
 
 export function exportGuestsPdf(guests: Guest[], wedding: Wedding, stats: GuestStats): void {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
-  const rows = guests.map(g =>
+  const rows = guests.map((guest) =>
     `<tr>
-      <td>${g.full_name}</td>
-      <td dir="ltr" style="text-align:right">${g.phone || ''}</td>
-      <td>${g.side}</td>
-      <td>${g.group_name || ''}</td>
-      <td>${g.adults_count}${g.kids_count > 0 ? `+${g.kids_count}` : ''}</td>
-      <td>${g.rsvp_status}</td>
-      <td>${g.gift_amount != null ? formatCurrency(g.gift_amount) : ''}</td>
+      <td>${guest.full_name}</td>
+      <td dir="ltr" style="text-align:right">${guest.phone || ''}</td>
+      <td>${guest.side}</td>
+      <td>${guest.group_name || ''}</td>
+      <td>${guest.adults_count}${guest.kids_count > 0 ? `+${guest.kids_count}` : ''}</td>
+      <td>${guest.rsvp_status}</td>
+      <td>${guest.gift_amount != null ? formatCurrency(guest.gift_amount) : ''}</td>
     </tr>`
   ).join('')
 
-  const avgGift = stats.giftCount > 0 ? formatCurrency(Math.round(stats.totalGiftAmount / stats.giftCount)) : '—'
+  const avgGift = stats.giftCount > 0
+    ? formatCurrency(Math.round(stats.totalGiftAmount / stats.giftCount))
+    : '—'
 
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="he">

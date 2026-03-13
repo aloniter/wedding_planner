@@ -73,7 +73,7 @@ export const RSVP_STRINGS = {
   errorGeneric: 'משהו השתבש, ננסה שוב',
   addToCalendar: 'הוסיפו ליומן',
   googleCalendar: 'Google Calendar',
-  downloadIcs: 'הורדת קובץ יומן (ICS)',
+  downloadIcs: 'Apple Calendar',
 } as const
 
 // WhatsApp invitation message template

@@ -71,6 +71,9 @@ export const RSVP_STRINGS = {
   invalidLink: 'הקישור לא תקף',
   invalidLinkDescription: 'נראה שהקישור שגוי או שפג תוקפו. פנו לזוג לקבלת קישור חדש.',
   errorGeneric: 'משהו השתבש, ננסה שוב',
+  addToCalendar: 'הוסיפו ליומן',
+  googleCalendar: 'Google Calendar',
+  downloadIcs: 'הורדת קובץ יומן (ICS)',
 } as const
 
 // WhatsApp invitation message template

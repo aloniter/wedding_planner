@@ -11,6 +11,7 @@ import { WeddingDetailsEditor } from '@/components/dashboard/wedding-details-edi
 import { GiftSummary } from '@/components/dashboard/gift-summary'
 import { ShareLinkButton } from '@/components/dashboard/share-link-button'
 import { PartnerInvite } from '@/components/dashboard/partner-invite'
+import { RecentResponses } from '@/components/dashboard/recent-responses'
 
 export default function DashboardPage() {
   const { wedding, loading: weddingLoading, updateWedding } = useWeddingSlugContext()
@@ -48,6 +49,9 @@ export default function DashboardPage() {
           totalRemaining={wedding.total_budget - totals.totalPaid}
         />
       </div>
+
+      {/* Recent RSVP Responses */}
+      <RecentResponses guests={allGuests} />
 
       {/* Vendors Due */}
       <VendorsDue vendors={vendors} />

@@ -13,12 +13,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
-import { Pencil } from 'lucide-react'
+import { Pencil, Send, Check } from 'lucide-react'
 import { RsvpBadge } from './rsvp-badge'
 import { EditGuestDialog } from './edit-guest-dialog'
+import { SendInviteDialog } from './send-invite-dialog'
 import { GUEST_SIDES } from '@/lib/constants'
 import { formatCurrency } from '@/lib/utils'
-import type { Guest, GuestUpdate, RsvpStatus, GuestCategory, WeddingTable } from '@/lib/types'
+import type { Guest, GuestUpdate, RsvpStatus, GuestCategory, WeddingTable, Wedding } from '@/lib/types'
 
 interface GuestTableProps {
   guests: Guest[]
@@ -26,6 +27,7 @@ interface GuestTableProps {
   onDeleteGuest: (id: string) => void
   categories?: GuestCategory[]
   tables?: WeddingTable[]
+  wedding?: Wedding
   page?: number
   pageSize?: number
 }
@@ -36,8 +38,9 @@ const sideColors: Record<string, string> = {
   'משותף': 'bg-purple-100 text-purple-800',
 }
 
-export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = [], tables = [], page = 0, pageSize = 50 }: GuestTableProps) {
+export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = [], tables = [], wedding, page = 0, pageSize = 50 }: GuestTableProps) {
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
+  const [invitingGuest, setInvitingGuest] = useState<Guest | null>(null)
   const [editingGiftId, setEditingGiftId] = useState<string | null>(null)
   const [giftInput, setGiftInput] = useState('')
 
@@ -84,6 +87,7 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
               <TableHead>קטגוריה</TableHead>
               <TableHead>מוזמנים</TableHead>
               <TableHead>מתנה</TableHead>
+              <TableHead>הזמנה</TableHead>
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -135,6 +139,19 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
                   )}
                 </TableCell>
                 <TableCell>
+                  {guest.invitation_sent_at ? (
+                    <Button variant="ghost" size="sm" className="gap-1 text-green-600 hover:text-green-700" onClick={() => wedding && setInvitingGuest(guest)}>
+                      <Check className="h-3.5 w-3.5" />
+                      <span className="text-xs">נשלחה</span>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => wedding && setInvitingGuest(guest)}>
+                      <Send className="h-3.5 w-3.5" />
+                      <span className="text-xs">שלח</span>
+                    </Button>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Button variant="ghost" size="icon" onClick={() => setEditingGuest(guest)}>
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -176,9 +193,18 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
                     )}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEditingGuest(guest)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => wedding && setInvitingGuest(guest)}>
+                    {guest.invitation_sent_at ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingGuest(guest)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -195,6 +221,17 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
           onDelete={onDeleteGuest}
           categories={categories}
           tables={tables}
+        />
+      )}
+
+      {/* Send invite dialog */}
+      {invitingGuest && wedding && (
+        <SendInviteDialog
+          guest={invitingGuest}
+          wedding={wedding}
+          open={!!invitingGuest}
+          onOpenChange={(open) => !open && setInvitingGuest(null)}
+          onUpdateGuest={onUpdateGuest}
         />
       )}
     </>

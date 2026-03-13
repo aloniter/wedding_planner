@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import type { Guest, GuestInsert, GuestUpdate, GuestStats, RsvpStatus, GuestSide, GuestSortField, SortDirection } from '@/lib/types'
+import type { Guest, GuestInsert, GuestUpdate, GuestStats, RsvpStatus, GuestSide, GuestSortField, SortDirection, InvitationFilter } from '@/lib/types'
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { useRealtime } from './use-realtime'
 
@@ -16,6 +16,7 @@ export function useGuests(weddingId: string | undefined) {
   const [filterSide, setFilterSide] = useState<GuestSide | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<RsvpStatus | 'all'>('all')
   const [filterCategory, setFilterCategory] = useState<string | 'all'>('all')
+  const [filterInvitation, setFilterInvitation] = useState<InvitationFilter>('all')
   const [sortField, setSortField] = useState<GuestSortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const guestsRef = useRef(guests)
@@ -211,9 +212,11 @@ export function useGuests(weddingId: string | undefined) {
           acc.totalGiftAmount += g.gift_amount
           acc.giftCount++
         }
+        if (g.invitation_sent_at) acc.invitationsSent++
+        if (g.rsvp_responded_at) acc.responsesReceived++
         return acc
       },
-      { total: 0, confirmed: 0, declined: 0, pending: 0, maybe: 0, totalAdults: 0, totalKids: 0, totalGiftAmount: 0, giftCount: 0 }
+      { total: 0, confirmed: 0, declined: 0, pending: 0, maybe: 0, totalAdults: 0, totalKids: 0, totalGiftAmount: 0, giftCount: 0, invitationsSent: 0, responsesReceived: 0 }
     )
   }, [guests])
 
@@ -223,6 +226,8 @@ export function useGuests(weddingId: string | undefined) {
       if (filterSide !== 'all' && g.side !== filterSide) return false
       if (filterStatus !== 'all' && g.rsvp_status !== filterStatus) return false
       if (filterCategory !== 'all' && (g.group_name || '') !== filterCategory) return false
+      if (filterInvitation === 'sent' && !g.invitation_sent_at) return false
+      if (filterInvitation === 'not_sent' && g.invitation_sent_at) return false
       return true
     })
 
@@ -254,7 +259,7 @@ export function useGuests(weddingId: string | undefined) {
     }
 
     return result
-  }, [guests, search, filterSide, filterStatus, filterCategory, sortField, sortDirection])
+  }, [guests, search, filterSide, filterStatus, filterCategory, filterInvitation, sortField, sortDirection])
 
   const findDuplicates = useCallback((): Guest[][] => {
     const groups = new Map<string, Guest[]>()
@@ -315,6 +320,8 @@ export function useGuests(weddingId: string | undefined) {
     setFilterStatus,
     filterCategory,
     setFilterCategory,
+    filterInvitation,
+    setFilterInvitation,
     sortField,
     setSortField,
     sortDirection,

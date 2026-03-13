@@ -1,4 +1,4 @@
-import type { RsvpStatus, GuestSide, VendorCategory } from './types'
+import type { RsvpStatus, RsvpPublicStatus, GuestSide, VendorCategory } from './types'
 
 export const RSVP_STATUSES: { value: RsvpStatus; label: string; emoji: string }[] = [
   { value: 'ממתין', label: 'ממתין', emoji: '⏳' },
@@ -42,3 +42,42 @@ export const DEFAULT_GUEST_CATEGORIES = [
   'צבא',
   'אחר',
 ] as const
+
+// Public-facing RSVP statuses (excludes 'ממתין' — guests can't set pending)
+export const RSVP_PUBLIC_STATUSES: { value: RsvpPublicStatus; label: string; emoji: string }[] = [
+  { value: 'אישר', label: 'מגיעים!', emoji: '🎉' },
+  { value: 'אולי', label: 'אולי', emoji: '🤔' },
+  { value: 'ביטל', label: 'לא מגיעים', emoji: '😔' },
+]
+
+// RSVP page Hebrew strings
+export const RSVP_STRINGS = {
+  greeting: (name: string) => `שלום ${name}!`,
+  invitedTo: (bride: string, groom: string) => `אתם מוזמנים לחתונה של ${bride} ו${groom}!`,
+  dateLabel: 'תאריך',
+  venueLabel: 'מקום',
+  attendanceQuestion: 'האם תגיעו?',
+  adultsLabel: 'מבוגרים',
+  kidsLabel: 'ילדים',
+  notesLabel: 'הערות',
+  notesPlaceholder: 'רוצים להוסיף משהו?',
+  submitButton: 'שליחה',
+  updatingButton: 'שומר...',
+  updateNote: 'ניתן לעדכן את התשובה בכל עת',
+  alreadyResponded: 'כבר הגבתם — ניתן לעדכן',
+  thankYouConfirmed: 'תודה! נתראה בחתונה! 🎉',
+  thankYouDeclined: 'תודה על העדכון, נתגעגע! 💙',
+  thankYouMaybe: 'תודה! נשמח לשמוע ממכם כשתדעו 🤞',
+  invalidLink: 'הקישור לא תקף',
+  invalidLinkDescription: 'נראה שהקישור שגוי או שפג תוקפו. פנו לזוג לקבלת קישור חדש.',
+  errorGeneric: 'משהו השתבש, ננסה שוב',
+} as const
+
+// WhatsApp invitation message template
+export const RSVP_WHATSAPP_TEMPLATE = (
+  guestName: string,
+  brideName: string,
+  groomName: string,
+  rsvpUrl: string,
+) =>
+  `שלום ${guestName}! 💍\nאתם מוזמנים לחתונה של ${brideName} ו${groomName}!\nלאישור הגעה:\n${rsvpUrl}`

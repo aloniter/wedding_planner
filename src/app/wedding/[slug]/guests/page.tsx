@@ -32,6 +32,8 @@ export default function GuestsPage() {
     setFilterStatus,
     filterCategory,
     setFilterCategory,
+    filterInvitation,
+    setFilterInvitation,
     sortField,
     setSortField,
     sortDirection,
@@ -118,6 +120,11 @@ export default function GuestsPage() {
           resetPagination()
           setFilterCategory(value)
         }}
+        filterInvitation={filterInvitation}
+        onFilterInvitationChange={(value) => {
+          resetPagination()
+          setFilterInvitation(value)
+        }}
         categories={categories}
         sortField={sortField}
         onSortFieldChange={(value) => {
@@ -136,6 +143,7 @@ export default function GuestsPage() {
         onUpdateGuest={updateGuest}
         onDeleteGuest={deleteGuest}
         categories={categories}
+        wedding={wedding}
         page={currentPage}
         pageSize={pageSize}
       />

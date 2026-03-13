@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { GUEST_SIDES, RSVP_STATUSES } from '@/lib/constants'
-import type { RsvpStatus, GuestSide, GuestCategory, GuestSortField, SortDirection } from '@/lib/types'
+import type { RsvpStatus, GuestSide, GuestCategory, GuestSortField, SortDirection, InvitationFilter } from '@/lib/types'
 
 interface GuestFiltersProps {
   search: string
@@ -22,6 +22,8 @@ interface GuestFiltersProps {
   onFilterStatusChange: (value: RsvpStatus | 'all') => void
   filterCategory: string | 'all'
   onFilterCategoryChange: (value: string | 'all') => void
+  filterInvitation: InvitationFilter
+  onFilterInvitationChange: (value: InvitationFilter) => void
   categories: GuestCategory[]
   sortField: GuestSortField | null
   onSortFieldChange: (value: GuestSortField | null) => void
@@ -46,6 +48,8 @@ export function GuestFilters({
   onFilterStatusChange,
   filterCategory,
   onFilterCategoryChange,
+  filterInvitation,
+  onFilterInvitationChange,
   categories,
   sortField,
   onSortFieldChange,
@@ -88,6 +92,16 @@ export function GuestFilters({
         </Select>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
+        <Select value={filterInvitation} onValueChange={(v) => onFilterInvitationChange(v as InvitationFilter)}>
+          <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectValue placeholder="הזמנה" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">כל ההזמנות</SelectItem>
+            <SelectItem value="sent">נשלחה הזמנה</SelectItem>
+            <SelectItem value="not_sent">לא נשלחה</SelectItem>
+          </SelectContent>
+        </Select>
         {categories.length > 0 && (
           <Select value={filterCategory} onValueChange={(v) => onFilterCategoryChange(v)}>
             <SelectTrigger className="w-full sm:w-[160px]">

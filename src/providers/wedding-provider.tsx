@@ -37,8 +37,16 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     if (!getSupabaseConfig()) return null
     const supabase = createClient()
 
+    // Guard: must be authenticated before creating anything
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      setError('יש להתחבר כדי ליצור חתונה')
+      return null
+    }
+
     const weddingId = crypto.randomUUID()
 
+    // Step 1: INSERT wedding
     const { error: insertError } = await supabase
       .from('weddings')
       .insert({
@@ -57,7 +65,20 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    // Fetch the created wedding to get the auto-generated slug
+    // Step 2: INSERT project_members FIRST (before SELECT — required for RLS)
+    const { error: memberError } = await supabase.from('project_members').insert({
+      wedding_id: weddingId,
+      user_id: session.user.id,
+      role: 'owner',
+      joined_at: new Date().toISOString(),
+    })
+
+    if (memberError) {
+      setError('שגיאה ביצירת החתונה')
+      return null
+    }
+
+    // Step 3: SELECT wedding (now passes RLS — user is a member)
     const { data: newWedding, error: selectError } = await supabase
       .from('weddings')
       .select('*')
@@ -69,18 +90,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
       return null
     }
 
-    // Add creator as owner in project_members
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      await supabase.from('project_members').insert({
-        wedding_id: weddingId,
-        user_id: session.user.id,
-        role: 'owner',
-        joined_at: new Date().toISOString(),
-      })
-    }
-
-    // Seed default categories
+    // Step 4: Seed default categories
     const defaultCats = DEFAULT_GUEST_CATEGORIES.map(name => ({
       wedding_id: weddingId,
       name,

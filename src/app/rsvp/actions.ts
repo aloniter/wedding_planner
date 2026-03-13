@@ -19,6 +19,7 @@ export async function getGuestByToken(token: string): Promise<RsvpPageData | nul
   }
 
   const supabase = createServiceClient()
+  if (!supabase) return null
 
   const { data: guest, error: guestError } = await supabase
     .from('guests')
@@ -90,6 +91,7 @@ export async function submitRsvp(
   const notes = (data.notes || '').trim().slice(0, 500)
 
   const supabase = createServiceClient()
+  if (!supabase) return { success: false as const, error: 'שגיאה בשרת, נסו שוב מאוחר יותר' }
 
   const { error } = await supabase
     .from('guests')

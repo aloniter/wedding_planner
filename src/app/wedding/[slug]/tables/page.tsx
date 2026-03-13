@@ -2,6 +2,7 @@
 
 import { PageHeader } from '@/components/layout/page-header'
 import { AddTableDialog } from '@/components/tables/add-table-dialog'
+import { TablesExportDropdown } from '@/components/tables/export-dropdown'
 import { TableCard } from '@/components/tables/table-card'
 import { TableOverview } from '@/components/tables/table-overview'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
@@ -41,6 +42,7 @@ export default function TablesPage() {
   }
 
   const sortedTables = [...tables].sort((a, b) => a.table_number - b.table_number)
+  const hasExportableData = tables.length > 0 || unassignedGuests.length > 0
 
   return (
     <div className="space-y-4">
@@ -48,11 +50,21 @@ export default function TablesPage() {
         title="סידורי ישיבה"
         subtitle={`${tables.length} שולחנות · ${unassignedGuests.length} ממתינים לשיבוץ`}
         action={
-          <AddTableDialog
-            weddingId={wedding.id}
-            nextNumber={nextTableNumber}
-            onAdd={addTable}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {hasExportableData && (
+              <TablesExportDropdown
+                tables={tables}
+                tableAssignments={tableAssignments}
+                unassignedGuests={unassignedGuests}
+                wedding={wedding}
+              />
+            )}
+            <AddTableDialog
+              weddingId={wedding.id}
+              nextNumber={nextTableNumber}
+              onAdd={addTable}
+            />
+          </div>
         }
       />
 

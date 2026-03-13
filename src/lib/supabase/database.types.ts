@@ -57,10 +57,13 @@ export type Database = {
           gift_amount: number | null
           group_name: string | null
           id: string
+          invitation_sent_at: string | null
           kids_count: number
           notes: string | null
           phone: string | null
+          rsvp_responded_at: string | null
           rsvp_status: string
+          rsvp_token: string
           side: string
           table_id: string | null
           updated_at: string
@@ -73,10 +76,13 @@ export type Database = {
           gift_amount?: number | null
           group_name?: string | null
           id?: string
+          invitation_sent_at?: string | null
           kids_count?: number
           notes?: string | null
           phone?: string | null
+          rsvp_responded_at?: string | null
           rsvp_status?: string
+          rsvp_token?: string
           side?: string
           table_id?: string | null
           updated_at?: string
@@ -89,10 +95,13 @@ export type Database = {
           gift_amount?: number | null
           group_name?: string | null
           id?: string
+          invitation_sent_at?: string | null
           kids_count?: number
           notes?: string | null
           phone?: string | null
+          rsvp_responded_at?: string | null
           rsvp_status?: string
+          rsvp_token?: string
           side?: string
           table_id?: string | null
           updated_at?: string

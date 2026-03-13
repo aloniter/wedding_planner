@@ -1,7 +1,7 @@
 'use client'
 
 import { Card, CardContent } from '@/components/ui/card'
-import { Users, UserCheck, UserX, Clock, HelpCircle, Gift } from 'lucide-react'
+import { Users, UserCheck, UserX, Clock, HelpCircle, Gift, Send, MessageCircleReply } from 'lucide-react'
 import type { GuestStats } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 
@@ -42,6 +42,22 @@ export function StatsCards({ stats }: StatsCardsProps) {
       value: stats.maybe,
       icon: HelpCircle,
       color: 'text-blue-500 bg-blue-50',
+    },
+    {
+      label: 'נשלחו הזמנות',
+      value: stats.invitationsSent,
+      sub: stats.total > 0 ? `מתוך ${stats.total}` : undefined,
+      icon: Send,
+      color: 'text-indigo-600 bg-indigo-50',
+    },
+    {
+      label: 'הגיבו',
+      value: stats.responsesReceived,
+      sub: stats.invitationsSent > 0
+        ? `${stats.invitationsSent - stats.responsesReceived} ממתינים לתגובה`
+        : undefined,
+      icon: MessageCircleReply,
+      color: 'text-teal-600 bg-teal-50',
     },
     {
       label: 'סה"כ מתנות',

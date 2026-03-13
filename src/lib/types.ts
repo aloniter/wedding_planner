@@ -36,6 +36,9 @@ export interface Guest {
   gift_amount: number | null
   table_id: string | null
   notes: string | null
+  rsvp_token: string
+  invitation_sent_at: string | null
+  rsvp_responded_at: string | null
   created_at: string
   updated_at: string
 }
@@ -53,13 +56,15 @@ export interface Vendor {
   updated_at: string
 }
 
-export type GuestInsert = Omit<Guest, 'id' | 'created_at' | 'updated_at'>
-export type GuestUpdate = Partial<Omit<Guest, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
+export type GuestInsert = Omit<Guest, 'id' | 'created_at' | 'updated_at' | 'rsvp_token' | 'invitation_sent_at' | 'rsvp_responded_at'>
+export type GuestUpdate = Partial<Omit<Guest, 'id' | 'wedding_id' | 'created_at' | 'updated_at' | 'rsvp_token'>>
 
 export type VendorInsert = Omit<Vendor, 'id' | 'created_at' | 'updated_at'>
 export type VendorUpdate = Partial<Omit<Vendor, 'id' | 'wedding_id' | 'created_at' | 'updated_at'>>
 
 export type WeddingUpdate = Partial<Omit<Wedding, 'id' | 'slug' | 'created_at' | 'updated_at'>>
+
+export type InvitationFilter = 'all' | 'sent' | 'not_sent'
 
 export interface GuestStats {
   total: number
@@ -71,6 +76,8 @@ export interface GuestStats {
   totalKids: number
   totalGiftAmount: number
   giftCount: number
+  invitationsSent: number
+  responsesReceived: number
 }
 
 // Table planning
@@ -143,6 +150,37 @@ export interface VenueAttachment {
   file_type: string
   file_size: number
   created_at: string
+}
+
+// Public RSVP types (used by server actions — never expose internal fields)
+export type RsvpPublicStatus = 'אישר' | 'ביטל' | 'אולי'
+
+export interface PublicRsvpGuest {
+  full_name: string
+  rsvp_status: RsvpStatus
+  adults_count: number
+  kids_count: number
+  notes: string | null
+  rsvp_responded_at: string | null
+}
+
+export interface PublicRsvpWedding {
+  bride_name: string
+  groom_name: string
+  wedding_date: string | null
+  venue_name: string | null
+}
+
+export interface RsvpPageData {
+  guest: PublicRsvpGuest
+  wedding: PublicRsvpWedding
+}
+
+export interface RsvpSubmission {
+  rsvp_status: RsvpPublicStatus
+  adults_count: number
+  kids_count: number
+  notes: string
 }
 
 // Sorting

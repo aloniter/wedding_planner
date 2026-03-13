@@ -7,17 +7,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { exportTablesToCsv, exportTablesPdf } from '@/lib/tables-export'
+import type { Guest, Wedding, WeddingTable } from '@/lib/types'
 import { Download, FileSpreadsheet, Printer } from 'lucide-react'
-import { exportGuestsToExcel, exportGuestsPdf } from '@/lib/export'
-import type { Guest, Wedding, GuestStats } from '@/lib/types'
 
-interface ExportDropdownProps {
-  guests: Guest[]
+interface TablesExportDropdownProps {
+  tables: WeddingTable[]
+  tableAssignments: Map<string, Guest[]>
+  unassignedGuests: Guest[]
   wedding: Wedding
-  stats: GuestStats
 }
 
-export function ExportDropdown({ guests, wedding, stats }: ExportDropdownProps) {
+export function TablesExportDropdown({
+  tables,
+  tableAssignments,
+  unassignedGuests,
+  wedding,
+}: TablesExportDropdownProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -27,11 +33,11 @@ export function ExportDropdown({ guests, wedding, stats }: ExportDropdownProps) 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        <DropdownMenuItem onClick={() => void exportGuestsToExcel(guests)}>
+        <DropdownMenuItem onClick={() => exportTablesToCsv(tables, tableAssignments, unassignedGuests)}>
           <FileSpreadsheet className="h-4 w-4 ml-2" />
-          Excel (.xlsx)
+          CSV (.csv)
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => exportGuestsPdf(guests, wedding, stats)}>
+        <DropdownMenuItem onClick={() => exportTablesPdf(tables, tableAssignments, unassignedGuests, wedding)}>
           <Printer className="h-4 w-4 ml-2" />
           PDF (הדפסה)
         </DropdownMenuItem>

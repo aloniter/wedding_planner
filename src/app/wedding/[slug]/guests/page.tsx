@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PageHeader } from '@/components/layout/page-header'
 import { GuestFilters } from '@/components/guests/guest-filters'
 import { GuestTable } from '@/components/guests/guest-table'
@@ -10,10 +10,12 @@ import { CategoryManager } from '@/components/guests/category-manager'
 import { ExportDropdown } from '@/components/guests/export-dropdown'
 import { DuplicateDetector } from '@/components/guests/duplicate-detector'
 import { GuestPagination } from '@/components/guests/guest-pagination'
+import { Button } from '@/components/ui/button'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
 import { useGuests } from '@/hooks/use-guests'
 import { useCategories } from '@/hooks/use-categories'
-import { useTables } from '@/hooks/use-tables'
+import { downloadGuestTemplate } from '@/lib/guest-template'
+import { Download } from 'lucide-react'
 
 export default function GuestsPage() {
   const { wedding, loading: weddingLoading } = useWeddingSlugContext()
@@ -30,6 +32,8 @@ export default function GuestsPage() {
     setFilterStatus,
     filterCategory,
     setFilterCategory,
+    filterInvitation,
+    setFilterInvitation,
     sortField,
     setSortField,
     sortDirection,
@@ -42,14 +46,9 @@ export default function GuestsPage() {
   } = useGuests(wedding?.id)
 
   const { categories, addCategory, renameCategory, deleteCategory } = useCategories(wedding?.id)
-  const { tables } = useTables(wedding?.id)
 
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(50)
-
-  useEffect(() => {
-    setPage(0)
-  }, [search, filterSide, filterStatus, filterCategory, sortField, sortDirection])
 
   if (weddingLoading || guestsLoading || !wedding) {
     return (
@@ -60,6 +59,9 @@ export default function GuestsPage() {
   }
 
   const totalPages = pageSize > 0 ? Math.ceil(guests.length / pageSize) : 1
+  const currentPage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0
+
+  const resetPagination = () => setPage(0)
 
   return (
     <div className="space-y-4">
@@ -69,6 +71,10 @@ export default function GuestsPage() {
         action={
           <div className="flex gap-2 flex-wrap justify-end">
             <AddGuestDialog weddingId={wedding.id} categories={categories} onAdd={addGuest} />
+            <Button variant="outline" size="sm" onClick={() => void downloadGuestTemplate()}>
+              <Download className="h-4 w-4 ml-1" />
+              הורד תבנית אורחים
+            </Button>
             <CsvImportDialog
               weddingId={wedding.id}
               groomName={wedding.groom_name}
@@ -86,25 +92,50 @@ export default function GuestsPage() {
               onDelete={deleteGuest}
               onUpdate={updateGuest}
             />
-            <ExportDropdown guests={allGuests} wedding={wedding} stats={stats} tables={tables} />
+            {allGuests.length > 0 && (
+              <ExportDropdown guests={allGuests} wedding={wedding} stats={stats} />
+            )}
           </div>
         }
       />
 
       <GuestFilters
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={(value) => {
+          resetPagination()
+          setSearch(value)
+        }}
         filterSide={filterSide}
-        onFilterSideChange={setFilterSide}
+        onFilterSideChange={(value) => {
+          resetPagination()
+          setFilterSide(value)
+        }}
         filterStatus={filterStatus}
-        onFilterStatusChange={setFilterStatus}
+        onFilterStatusChange={(value) => {
+          resetPagination()
+          setFilterStatus(value)
+        }}
         filterCategory={filterCategory}
-        onFilterCategoryChange={setFilterCategory}
+        onFilterCategoryChange={(value) => {
+          resetPagination()
+          setFilterCategory(value)
+        }}
+        filterInvitation={filterInvitation}
+        onFilterInvitationChange={(value) => {
+          resetPagination()
+          setFilterInvitation(value)
+        }}
         categories={categories}
         sortField={sortField}
-        onSortFieldChange={setSortField}
+        onSortFieldChange={(value) => {
+          resetPagination()
+          setSortField(value)
+        }}
         sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
+        onSortDirectionChange={(value) => {
+          resetPagination()
+          setSortDirection(value)
+        }}
       />
 
       <GuestTable
@@ -112,13 +143,14 @@ export default function GuestsPage() {
         onUpdateGuest={updateGuest}
         onDeleteGuest={deleteGuest}
         categories={categories}
-        page={page}
+        wedding={wedding}
+        page={currentPage}
         pageSize={pageSize}
       />
 
       {guests.length > 25 && (
         <GuestPagination
-          page={page}
+          page={currentPage}
           totalPages={totalPages}
           pageSize={pageSize}
           totalItems={guests.length}

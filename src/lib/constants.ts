@@ -84,3 +84,4 @@ export const RSVP_WHATSAPP_TEMPLATE = (
   rsvpUrl: string,
 ) =>
   `שלום ${guestName}! 💍\nאתם מוזמנים לחתונה של ${brideName} ו${groomName}!\nלאישור הגעה:\n${rsvpUrl}`
+

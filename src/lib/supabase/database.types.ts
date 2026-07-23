@@ -357,6 +357,7 @@ export type Database = {
           estimated_guests: number | null
           groom_name: string
           id: string
+          save_the_date_image_url: string | null
           slug: string
           total_budget: number
           updated_at: string
@@ -369,6 +370,7 @@ export type Database = {
           estimated_guests?: number | null
           groom_name: string
           id?: string
+          save_the_date_image_url?: string | null
           slug: string
           total_budget?: number
           updated_at?: string
@@ -381,6 +383,7 @@ export type Database = {
           estimated_guests?: number | null
           groom_name?: string
           id?: string
+          save_the_date_image_url?: string | null
           slug?: string
           total_budget?: number
           updated_at?: string

@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatDate, daysUntilWedding } from '@/lib/utils'
+import { SaveTheDateUpload } from '@/components/dashboard/save-the-date-upload'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
 
 interface WeddingDetailsEditorProps {
@@ -123,6 +124,7 @@ export function WeddingDetailsEditor({ wedding, onUpdate }: WeddingDetailsEditor
             />
           </div>
         </div>
+        <SaveTheDateUpload wedding={wedding} onUpdate={onUpdate} />
       </CardContent>
     </Card>
   )

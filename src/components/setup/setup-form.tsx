@@ -46,6 +46,7 @@ export function SetupForm() {
       venue_name: venueName.trim() || null,
       total_budget: parseInt(totalBudget) || 0,
       estimated_guests: null,
+      save_the_date_image_url: null,
     })
 
     if (result) {

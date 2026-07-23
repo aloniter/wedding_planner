@@ -19,6 +19,7 @@ export interface Wedding {
   venue_name: string | null
   total_budget: number
   estimated_guests: number | null
+  save_the_date_image_url: string | null
   created_at: string
   updated_at: string
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
+import { clearSlug } from '@/lib/wedding-storage'
 import { Loader2 } from 'lucide-react'
 
 export function WeddingGuard({ children }: { children: React.ReactNode }) {

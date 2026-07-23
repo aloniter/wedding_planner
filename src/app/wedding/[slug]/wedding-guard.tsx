@@ -1,33 +1,18 @@
 'use client'
 
-import { useAuth } from '@/providers/auth-provider'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
-import { clearSlug } from '@/lib/wedding-storage'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 
 export function WeddingGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth()
   const { error, loading: weddingLoading } = useWeddingSlugContext()
-  const router = useRouter()
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      clearSlug()
-      router.replace('/login')
-    }
-  }, [authLoading, user, router])
-
-  if (authLoading || weddingLoading) {
+  if (weddingLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
-
-  if (!user) return null
 
   if (error) {
     clearSlug()

@@ -76,12 +76,8 @@ export const RSVP_STRINGS = {
   downloadIcs: 'Apple Calendar',
 } as const
 
-// WhatsApp invitation message template
-export const RSVP_WHATSAPP_TEMPLATE = (
-  guestName: string,
-  brideName: string,
-  groomName: string,
-  rsvpUrl: string,
-) =>
-  `שלום ${guestName}! 💍\nאתם מוזמנים לחתונה של ${brideName} ו${groomName}!\nלאישור הגעה:\n${rsvpUrl}`
+// Default WhatsApp invitation message template.
+// Supports {{guest_name}}, {{bride_name}}, {{groom_name}}, {{rsvp_link}} tokens — see renderInviteMessage().
+export const DEFAULT_INVITE_TEMPLATE_BODY =
+  'שלום {{guest_name}}! 💍\nאתם מוזמנים לחתונה של {{bride_name}} ו{{groom_name}}!\nלאישור הגעה:\n{{rsvp_link}}'
 

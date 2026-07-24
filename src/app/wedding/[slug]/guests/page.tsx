@@ -18,7 +18,7 @@ import { downloadGuestTemplate } from '@/lib/guest-template'
 import { Download } from 'lucide-react'
 
 export default function GuestsPage() {
-  const { wedding, loading: weddingLoading } = useWeddingSlugContext()
+  const { wedding, loading: weddingLoading, updateWedding } = useWeddingSlugContext()
   const {
     guests,
     allGuests,
@@ -144,6 +144,7 @@ export default function GuestsPage() {
         onDeleteGuest={deleteGuest}
         categories={categories}
         wedding={wedding}
+        onUpdateWedding={updateWedding}
         page={currentPage}
         pageSize={pageSize}
       />

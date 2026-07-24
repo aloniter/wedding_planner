@@ -19,7 +19,7 @@ import { EditGuestDialog } from './edit-guest-dialog'
 import { SendInviteDialog } from './send-invite-dialog'
 import { GUEST_SIDES } from '@/lib/constants'
 import { formatCurrency } from '@/lib/utils'
-import type { Guest, GuestUpdate, RsvpStatus, GuestCategory, WeddingTable, Wedding } from '@/lib/types'
+import type { Guest, GuestUpdate, RsvpStatus, GuestCategory, WeddingTable, Wedding, WeddingUpdate } from '@/lib/types'
 
 interface GuestTableProps {
   guests: Guest[]
@@ -28,6 +28,7 @@ interface GuestTableProps {
   categories?: GuestCategory[]
   tables?: WeddingTable[]
   wedding?: Wedding
+  onUpdateWedding?: (updates: WeddingUpdate) => void
   page?: number
   pageSize?: number
 }
@@ -38,7 +39,7 @@ const sideColors: Record<string, string> = {
   'משותף': 'bg-purple-100 text-purple-800',
 }
 
-export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = [], tables = [], wedding, page = 0, pageSize = 50 }: GuestTableProps) {
+export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = [], tables = [], wedding, onUpdateWedding, page = 0, pageSize = 50 }: GuestTableProps) {
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
   const [invitingGuest, setInvitingGuest] = useState<Guest | null>(null)
   const [editingGiftId, setEditingGiftId] = useState<string | null>(null)
@@ -232,6 +233,7 @@ export function GuestTable({ guests, onUpdateGuest, onDeleteGuest, categories = 
           open={!!invitingGuest}
           onOpenChange={(open) => !open && setInvitingGuest(null)}
           onUpdateGuest={onUpdateGuest}
+          onUpdateWedding={onUpdateWedding}
         />
       )}
     </>

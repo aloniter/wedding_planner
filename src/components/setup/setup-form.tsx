@@ -47,6 +47,7 @@ export function SetupForm() {
       total_budget: parseInt(totalBudget) || 0,
       estimated_guests: null,
       save_the_date_image_url: null,
+      invite_message_templates: [],
     })
 
     if (result) {

@@ -28,7 +28,7 @@ import {
   renderInviteMessage,
 } from '@/lib/rsvp-invite'
 import { DEFAULT_INVITE_TEMPLATE_BODY } from '@/lib/constants'
-import { MessageCircle, Copy, Link, Check, Loader2, AlertCircle, Save, Trash2 } from 'lucide-react'
+import { MessageCircle, Copy, Link, Check, Loader2, AlertCircle, Save, Trash2, SkipForward } from 'lucide-react'
 import type { Guest, Wedding, GuestUpdate, WeddingUpdate, InviteMessageTemplate } from '@/lib/types'
 
 interface SendInviteDialogProps {
@@ -38,6 +38,10 @@ interface SendInviteDialogProps {
   onOpenChange: (open: boolean) => void
   onUpdateGuest: (id: string, updates: GuestUpdate) => void
   onUpdateWedding?: (updates: WeddingUpdate) => void
+  /** Queue mode: shows progress and advances to the next guest instead of closing. */
+  queuePosition?: number
+  queueTotal?: number
+  onNext?: () => void
 }
 
 type CopiedField = 'message' | 'link' | null
@@ -71,7 +75,7 @@ function getBlockedImageShareMessage(reason: 'insecure-context' | 'not-mobile' |
   }
 }
 
-export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateGuest, onUpdateWedding }: SendInviteDialogProps) {
+export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateGuest, onUpdateWedding, queuePosition, queueTotal, onNext }: SendInviteDialogProps) {
   const imageFileRef = useRef<File | null>(null)
   const [copiedField, setCopiedField] = useState<CopiedField>(null)
   const [sharing, setSharing] = useState(false)
@@ -107,6 +111,9 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
       setCaption(invite.caption)
       setSavingTemplate(false)
       setTemplateName('')
+      setNotice(null)
+      setReadyToConfirm(false)
+      setCopiedField(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, guest.id])
@@ -147,7 +154,11 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
 
   const markAsSent = () => {
     onUpdateGuest(guest.id, { invitation_sent_at: new Date().toISOString() })
-    onOpenChange(false)
+    if (onNext) {
+      onNext()
+    } else {
+      onOpenChange(false)
+    }
   }
 
   const handleSelectTemplate = (templateId: string) => {
@@ -313,7 +324,10 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
       <DialogContent className="max-h-[min(92dvh,48rem)] overflow-hidden p-0 sm:max-w-md" dir="rtl">
         <div className="flex max-h-[min(92dvh,48rem)] flex-col">
           <DialogHeader className="shrink-0 border-b bg-background px-4 pt-5 pb-3 text-right sm:px-6">
-            <DialogTitle className="pl-10">שליחת הזמנה ל{guest.full_name}</DialogTitle>
+            <DialogTitle className="pl-10">
+              שליחת הזמנה ל{guest.full_name}
+              {queueTotal ? <span className="text-muted-foreground font-normal text-sm"> ({queuePosition}/{queueTotal})</span> : null}
+            </DialogTitle>
             <DialogDescription>
               שלחו דרך WhatsApp עם טקסט וקישור RSVP. תמונה אמיתית נשלחת רק ממכשיר שתומך בשיתוף קבצים.
             </DialogDescription>
@@ -502,7 +516,14 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
               {readyToConfirm && (
                 <Button onClick={markAsSent} variant="secondary" className="h-11 w-full gap-2">
                   <Check className="h-4 w-4" />
-                  סמן שההזמנה נשלחה
+                  {onNext ? 'סמן שנשלח והמשך לבא' : 'סמן שההזמנה נשלחה'}
+                </Button>
+              )}
+
+              {onNext && (
+                <Button onClick={onNext} variant="ghost" className="h-9 w-full gap-2 text-muted-foreground">
+                  <SkipForward className="h-4 w-4" />
+                  דלג לאורח הבא
                 </Button>
               )}
             </div>

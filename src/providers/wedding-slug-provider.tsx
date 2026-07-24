@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { saveSlug } from '@/lib/wedding-storage'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
+import type { Database } from '@/lib/supabase/database.types'
 
 interface WeddingSlugContextValue {
   wedding: Wedding | null
@@ -50,7 +51,7 @@ export function WeddingSlugProvider({ slug, children }: { slug: string; children
           setLoading(false)
         } else {
           saveSlug(data.slug)
-          setWedding(data as Wedding)
+          setWedding(data as unknown as Wedding)
           setLoading(false)
         }
       }
@@ -73,7 +74,7 @@ export function WeddingSlugProvider({ slug, children }: { slug: string; children
         table: 'weddings',
         filter: `id=eq.${wedding.id}`,
       }, (payload) => {
-        setWedding(payload.new as Wedding)
+        setWedding(payload.new as unknown as Wedding)
       })
       .subscribe()
 
@@ -88,7 +89,7 @@ export function WeddingSlugProvider({ slug, children }: { slug: string; children
 
     const { error: updateError } = await supabase
       .from('weddings')
-      .update(updates)
+      .update(updates as unknown as Database['public']['Tables']['weddings']['Update'])
       .eq('id', wedding.id)
 
     if (updateError) {

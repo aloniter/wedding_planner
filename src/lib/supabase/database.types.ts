@@ -357,6 +357,7 @@ export type Database = {
           estimated_guests: number | null
           groom_name: string
           id: string
+          invite_message_templates: Json
           save_the_date_image_url: string | null
           slug: string
           total_budget: number
@@ -370,6 +371,7 @@ export type Database = {
           estimated_guests?: number | null
           groom_name: string
           id?: string
+          invite_message_templates?: Json
           save_the_date_image_url?: string | null
           slug: string
           total_budget?: number
@@ -383,6 +385,7 @@ export type Database = {
           estimated_guests?: number | null
           groom_name?: string
           id?: string
+          invite_message_templates?: Json
           save_the_date_image_url?: string | null
           slug?: string
           total_budget?: number

@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { createClient, getSupabaseConfig } from '@/lib/supabase/client'
 import { saveSlug } from '@/lib/wedding-storage'
 import type { Wedding, WeddingUpdate } from '@/lib/types'
+import type { Database } from '@/lib/supabase/database.types'
 import { DEFAULT_GUEST_CATEGORIES } from '@/lib/constants'
 
 interface WeddingContextValue {
@@ -97,7 +98,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
     }))
     await supabase.from('guest_categories').insert(defaultCats)
 
-    const result = newWedding as Wedding
+    const result = newWedding as unknown as Wedding
     saveSlug(result.slug)
     setWedding(result)
     return result
@@ -112,7 +113,7 @@ export function WeddingProvider({ children }: { children: ReactNode }) {
 
     const { error: updateError } = await supabase
       .from('weddings')
-      .update(updates)
+      .update(updates as unknown as Database['public']['Tables']['weddings']['Update'])
       .eq('id', wedding.id)
 
     if (updateError) {

@@ -1,4 +1,4 @@
-import { RSVP_WHATSAPP_TEMPLATE } from '@/lib/constants'
+import { DEFAULT_INVITE_TEMPLATE_BODY } from '@/lib/constants'
 import type { Guest, Wedding } from '@/lib/types'
 
 export interface WhatsAppInvitePayload {
@@ -32,12 +32,27 @@ export function generateRsvpUrl(token: string): string {
 }
 
 /**
+ * Fill {{guest_name}}, {{bride_name}}, {{groom_name}} and {{rsvp_link}} tokens in a
+ * template body. If the template doesn't reference {{rsvp_link}}, the RSVP url is
+ * appended at the end so guests can always respond.
+ */
+export function renderInviteMessage(body: string, guest: Guest, wedding: Wedding, rsvpUrl: string): string {
+  const rendered = body
+    .replaceAll('{{guest_name}}', guest.full_name)
+    .replaceAll('{{bride_name}}', wedding.bride_name)
+    .replaceAll('{{groom_name}}', wedding.groom_name)
+    .replaceAll('{{rsvp_link}}', rsvpUrl)
+
+  return body.includes('{{rsvp_link}}') ? rendered : `${rendered}\n\n${rsvpUrl}`
+}
+
+/**
  * Build the invite payload used by the WhatsApp send flow.
  */
-export function getWhatsAppInvitePayload(guest: Guest, wedding: Wedding): WhatsAppInvitePayload {
+export function getWhatsAppInvitePayload(guest: Guest, wedding: Wedding, templateBody?: string): WhatsAppInvitePayload {
   const rsvpUrl = generateRsvpUrl(guest.rsvp_token)
   return {
-    caption: RSVP_WHATSAPP_TEMPLATE(guest.full_name, wedding.bride_name, wedding.groom_name, rsvpUrl),
+    caption: renderInviteMessage(templateBody ?? DEFAULT_INVITE_TEMPLATE_BODY, guest, wedding, rsvpUrl),
     rsvpUrl,
     imageUrl: wedding.save_the_date_image_url,
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,14 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   getWhatsAppInvitePayload,
   generateWhatsAppLink,
@@ -17,9 +25,11 @@ import {
   shareImageViaWhatsApp,
   getNativeFileShareSupport,
   fetchImageAsFile,
+  renderInviteMessage,
 } from '@/lib/rsvp-invite'
-import { MessageCircle, Copy, Link, Check, Loader2, AlertCircle } from 'lucide-react'
-import type { Guest, Wedding, GuestUpdate } from '@/lib/types'
+import { DEFAULT_INVITE_TEMPLATE_BODY } from '@/lib/constants'
+import { MessageCircle, Copy, Link, Check, Loader2, AlertCircle, Save, Trash2 } from 'lucide-react'
+import type { Guest, Wedding, GuestUpdate, WeddingUpdate, InviteMessageTemplate } from '@/lib/types'
 
 interface SendInviteDialogProps {
   guest: Guest
@@ -27,6 +37,7 @@ interface SendInviteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUpdateGuest: (id: string, updates: GuestUpdate) => void
+  onUpdateWedding?: (updates: WeddingUpdate) => void
 }
 
 type CopiedField = 'message' | 'link' | null
@@ -37,6 +48,8 @@ interface InviteNotice {
   tone: NoticeTone
   text: string
 }
+
+const DEFAULT_TEMPLATE_ID = 'default'
 
 const NOTICE_STYLES: Record<NoticeTone, string> = {
   info: 'border-sky-200 bg-sky-50 text-sky-900',
@@ -58,7 +71,7 @@ function getBlockedImageShareMessage(reason: 'insecure-context' | 'not-mobile' |
   }
 }
 
-export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateGuest }: SendInviteDialogProps) {
+export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateGuest, onUpdateWedding }: SendInviteDialogProps) {
   const imageFileRef = useRef<File | null>(null)
   const [copiedField, setCopiedField] = useState<CopiedField>(null)
   const [sharing, setSharing] = useState(false)
@@ -66,6 +79,9 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
   const [notice, setNotice] = useState<InviteNotice | null>(null)
   const [readyToConfirm, setReadyToConfirm] = useState(false)
   const [imageShareStatus, setImageShareStatus] = useState<ImageShareStatus>('idle')
+  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID)
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
 
   const invite = getWhatsAppInvitePayload(guest, wedding)
   const [caption, setCaption] = useState(invite.caption)
@@ -75,8 +91,23 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
   const fileShareSupport = getNativeFileShareSupport()
   const imageShareBlocked = sendWithImage && !fileShareSupport.supported
 
+  const templates = useMemo<InviteMessageTemplate[]>(() => [
+    { id: DEFAULT_TEMPLATE_ID, name: 'ברירת מחדל', body: DEFAULT_INVITE_TEMPLATE_BODY },
+    ...(wedding.invite_message_templates ?? []),
+  ], [wedding.invite_message_templates])
+
+  const renderTemplate = (templateId: string) => {
+    const template = templates.find((t) => t.id === templateId)
+    return renderInviteMessage(template?.body ?? DEFAULT_INVITE_TEMPLATE_BODY, guest, wedding, invite.rsvpUrl)
+  }
+
   useEffect(() => {
-    if (open) setCaption(invite.caption)
+    if (open) {
+      setSelectedTemplateId(DEFAULT_TEMPLATE_ID)
+      setCaption(invite.caption)
+      setSavingTemplate(false)
+      setTemplateName('')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, guest.id])
 
@@ -117,6 +148,37 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
   const markAsSent = () => {
     onUpdateGuest(guest.id, { invitation_sent_at: new Date().toISOString() })
     onOpenChange(false)
+  }
+
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    setCaption(renderTemplate(templateId))
+    setSavingTemplate(false)
+  }
+
+  const handleSaveTemplate = () => {
+    const name = templateName.trim()
+    if (!name || !onUpdateWedding) return
+
+    const newTemplate: InviteMessageTemplate = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+      name,
+      body: caption,
+    }
+    onUpdateWedding({ invite_message_templates: [...(wedding.invite_message_templates ?? []), newTemplate] })
+    setSelectedTemplateId(newTemplate.id)
+    setCaption(renderInviteMessage(newTemplate.body, guest, wedding, invite.rsvpUrl))
+    setSavingTemplate(false)
+    setTemplateName('')
+    setNotice({ tone: 'success', text: `התבנית "${name}" נשמרה. היא תופיע ברשימה עבור כל האורחים.` })
+  }
+
+  const handleDeleteTemplate = () => {
+    if (selectedTemplateId === DEFAULT_TEMPLATE_ID || !onUpdateWedding) return
+    const remaining = (wedding.invite_message_templates ?? []).filter((t) => t.id !== selectedTemplateId)
+    onUpdateWedding({ invite_message_templates: remaining })
+    setSelectedTemplateId(DEFAULT_TEMPLATE_ID)
+    setCaption(renderInviteMessage(DEFAULT_INVITE_TEMPLATE_BODY, guest, wedding, invite.rsvpUrl))
   }
 
   const handleWhatsApp = async () => {
@@ -269,18 +331,62 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
                 </div>
               )}
 
+              {onUpdateWedding && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">תבנית הודעה</Label>
+                  <div className="flex items-center gap-2">
+                    <Select value={selectedTemplateId} onValueChange={handleSelectTemplate}>
+                      <SelectTrigger className="h-9 flex-1 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedTemplateId !== DEFAULT_TEMPLATE_ID && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-red-600"
+                        onClick={handleDeleteTemplate}
+                        title="מחק תבנית"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-muted-foreground">הודעה</Label>
-                  {caption !== invite.caption && (
-                    <button
-                      type="button"
-                      onClick={() => setCaption(invite.caption)}
-                      className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      החזר לברירת מחדל
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {caption !== renderTemplate(selectedTemplateId) && (
+                      <button
+                        type="button"
+                        onClick={() => setCaption(renderTemplate(selectedTemplateId))}
+                        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        החזר לתבנית
+                      </button>
+                    )}
+                    {onUpdateWedding && !savingTemplate && (
+                      <button
+                        type="button"
+                        onClick={() => setSavingTemplate(true)}
+                        className="flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                      >
+                        <Save className="h-3 w-3" />
+                        שמור כתבנית
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <textarea
                   value={caption}
@@ -289,6 +395,21 @@ export function SendInviteDialog({ guest, wedding, open, onOpenChange, onUpdateG
                   dir="rtl"
                   className="w-full resize-y rounded-lg bg-muted p-3 text-[13px] leading-6 whitespace-pre-line break-words outline-none ring-1 ring-transparent focus:ring-pink-400 sm:text-sm sm:leading-relaxed"
                 />
+                {savingTemplate && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Input
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="שם התבנית, לדוגמה: הזמנה כללית"
+                      className="h-9 text-sm"
+                      dir="rtl"
+                      autoFocus
+                    />
+                    <Button type="button" size="sm" className="h-9 shrink-0" disabled={!templateName.trim()} onClick={handleSaveTemplate}>
+                      שמירה
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {hasImage && (

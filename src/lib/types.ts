@@ -10,6 +10,12 @@ export type VendorCategory =
   | 'שמלה/חליפה'
   | 'אחר'
 
+export interface InviteMessageTemplate {
+  id: string
+  name: string
+  body: string
+}
+
 export interface Wedding {
   id: string
   slug: string
@@ -20,6 +26,7 @@ export interface Wedding {
   total_budget: number
   estimated_guests: number | null
   save_the_date_image_url: string | null
+  invite_message_templates: InviteMessageTemplate[]
   created_at: string
   updated_at: string
 }

@@ -10,12 +10,13 @@ import { CategoryManager } from '@/components/guests/category-manager'
 import { ExportDropdown } from '@/components/guests/export-dropdown'
 import { DuplicateDetector } from '@/components/guests/duplicate-detector'
 import { GuestPagination } from '@/components/guests/guest-pagination'
+import { BulkSendDialog } from '@/components/guests/bulk-send-dialog'
 import { Button } from '@/components/ui/button'
 import { useWeddingSlugContext } from '@/providers/wedding-slug-provider'
 import { useGuests } from '@/hooks/use-guests'
 import { useCategories } from '@/hooks/use-categories'
 import { downloadGuestTemplate } from '@/lib/guest-template'
-import { Download } from 'lucide-react'
+import { Download, Send } from 'lucide-react'
 
 export default function GuestsPage() {
   const { wedding, loading: weddingLoading, updateWedding } = useWeddingSlugContext()
@@ -49,6 +50,8 @@ export default function GuestsPage() {
 
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(50)
+  const [bulkSendOpen, setBulkSendOpen] = useState(false)
+  const [bulkSendQueue, setBulkSendQueue] = useState<typeof guests>([])
 
   if (weddingLoading || guestsLoading || !wedding) {
     return (
@@ -63,6 +66,13 @@ export default function GuestsPage() {
 
   const resetPagination = () => setPage(0)
 
+  const pendingWithPhone = guests.filter((g) => g.phone && !g.invitation_sent_at)
+
+  const startBulkSend = () => {
+    setBulkSendQueue(pendingWithPhone)
+    setBulkSendOpen(true)
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -70,6 +80,15 @@ export default function GuestsPage() {
         subtitle={`${stats.total} מוזמנים · ${stats.totalAdults + stats.totalKids} אנשים`}
         action={
           <div className="flex gap-2 flex-wrap justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={startBulkSend}
+              disabled={pendingWithPhone.length === 0}
+            >
+              <Send className="h-4 w-4 ml-1" />
+              שליחה מהירה לממתינים ({pendingWithPhone.length})
+            </Button>
             <AddGuestDialog weddingId={wedding.id} categories={categories} onAdd={addGuest} />
             <Button variant="outline" size="sm" onClick={() => void downloadGuestTemplate()}>
               <Download className="h-4 w-4 ml-1" />
@@ -159,6 +178,15 @@ export default function GuestsPage() {
           onPageSizeChange={(size) => { setPageSize(size); setPage(0) }}
         />
       )}
+
+      <BulkSendDialog
+        guests={bulkSendQueue}
+        wedding={wedding}
+        open={bulkSendOpen}
+        onOpenChange={setBulkSendOpen}
+        onUpdateGuest={updateGuest}
+        onUpdateWedding={updateWedding}
+      />
     </div>
   )
 }

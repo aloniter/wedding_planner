@@ -33,10 +33,10 @@ BEGIN
     RAISE EXCEPTION 'Source wedding % not found', source_slug;
   END IF;
 
-  -- Clean wedding: placeholder names (editable from the dashboard), no date,
-  -- venue, budget, save-the-date image or message templates.
+  -- Clean wedding for יובל & אסנת: no date, venue, budget, save-the-date
+  -- image or message templates.
   INSERT INTO weddings (groom_name, bride_name, slug)
-  VALUES ('חתן', 'כלה', new_slug)
+  VALUES ('יובל', 'אסנת', new_slug)
   RETURNING id INTO new_id;
 
   -- Categories used by the copied guests, so their groups keep their colors
